@@ -15,25 +15,23 @@
         <div id="sign-up"></div>
     </div>
 
+    <!-- The Fix: Load the Clerk library FIRST -->
+    <script async src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+        data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk" <!-- REPLACE WITH YOUR KEY -->
+        onload="startClerk()"
+    ></script>
+
+    <!-- Our custom script that USES Clerk -->
     <script>
-        const CLERK_PUBLISHABLE_KEY = "pk_test_dG91Y2hpbmctbW9zcXVpdG8tOTAuY2xlcmsuYWNjb3VudHMuZGV2JA"; // Replace with your actual key
-        const frontendApi = "your-vercel-url"; // Example: learn-n-teach.vercel.app, used by Clerk for redirects
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            await window.Clerk.load({
-                // You can add customization here if needed
-            });
-
+        function startClerk() {
+            const Clerk = window.Clerk;
             const signUpComponent = document.getElementById('sign-up');
             
-            // Mount the pre-built Sign Up component from Clerk
-            window.Clerk.mountSignUp(signUpComponent, {
-                // After a successful sign-up, Clerk will redirect the user to the onboarding flow
-                afterSignUpUrl: '/onboarding-profile.html', 
-                // You can also specify a redirect URL for signing in from this component
-                afterSignInUrl: '/dashboard.html' 
+            // Mount the pre-built Sign Up component
+            Clerk.mountSignUp(signUpComponent, {
+                 // Clerk will handle the redirect automatically based on the paths you set in the dashboard.
             });
-        });
+        }
     </script>
 </body>
 </html>
