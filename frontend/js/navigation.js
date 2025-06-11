@@ -1,10 +1,8 @@
-// frontend/js/navigation.js (The final, complete version)
-
 function initializeClerkNavigation() {
     const Clerk = window.Clerk;
 
     if (!Clerk) {
-        console.error("Clerk object is not available.");
+        console.error("Clerk object is not available. This can happen if the script is loaded in the wrong order.");
         return;
     }
 
@@ -18,21 +16,16 @@ function initializeClerkNavigation() {
             if (userButton) {
                 userButton.style.display = 'flex';
                 
-                // Create the HTML for the signed-in user, including the new Sign Out button
                 userButton.innerHTML = `
-                    <div class="text-white me-3">Welcome, ${user.firstName || user.username}</div>
+                    <div class="navbar-text text-white me-3">Welcome, ${user.firstName || user.username}</div>
                     <a href="/dashboard.html" class="btn btn-sm btn-outline-light">Dashboard</a>
                     <button id="sign-out-button" class="btn btn-sm btn-secondary ms-2">Sign Out</button>
                 `;
 
-                // *** THIS IS THE NEW LOGIC ***
-                // Now that the button exists in the HTML, find it and add the click event.
                 const signOutButton = document.getElementById('sign-out-button');
                 if (signOutButton) {
                     signOutButton.addEventListener('click', async () => {
-                        console.log("Signing out...");
                         await Clerk.signOut();
-                        // Redirect to the login page after signing out.
                         window.location.href = '/login.html';
                     });
                 }

@@ -22,16 +22,11 @@
         async function startClerk() {
             const Clerk = window.Clerk;
             const signInElement = document.getElementById('sign-in');
-
             try {
                 await Clerk.load();
-
-                // *** THIS IS THE FIX ***
-                // We are now explicitly telling Clerk where to go after a successful sign-in.
                 Clerk.mountSignIn(signInElement, {
                     afterSignInUrl: '/dashboard.html'
                 });
-
             } catch (error) {
                 console.error("Clerk mounting error:", error);
             }
