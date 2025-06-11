@@ -4,34 +4,118 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - Learn N Teach</title>
+
+    <!-- Link to Bootstrap for styling -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Custom styles to center the signup form -->
     <style>
-        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background-color: #f8f9fa; }
-        .clerk-container { width: 100%; max-width: 400px; }
+        body { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            background-color: #f8f9fa; 
+        }
+        .clerk-container { 
+            width: 100%; 
+            max-width: 400px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            padding: 2rem;
+            background-color: white;
+        }
     </style>
 </head>
 <body>
+
+    <!-- This is the container where Clerk will render the signup form -->
     <div class="clerk-container">
         <div id="sign-up"></div>
     </div>
 
-    <!-- The Fix: Load the Clerk library FIRST -->
+    <!-- 
+      *** THE CORRECT SCRIPT LOADING PATTERN ***
+      This loads the Clerk library and only runs our custom function *after* it's ready.
+    -->
     <script async src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
-        data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk" <!-- REPLACE WITH YOUR KEY -->
+        data-clerk-publishable-key="<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Learn N Teach</title>
+
+    <!-- Link to Bootstrap for styling -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Custom styles to center the signup form -->
+    <style>
+        body { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            background-color: #f8f9fa; 
+        }
+        .clerk-container { 
+            width: 100%; 
+            max-width: 400px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            padding: 2rem;
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- This is the container where Clerk will render the signup form -->
+    <div class="clerk-container">
+        <div id="sign-up"></div>
+    </div>
+
+    <!-- 
+      *** THE CORRECT SCRIPT LOADING PATTERN ***
+      This loads the Clerk library and only runs our custom function *after* it's ready.
+    -->
+    <script async src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+        data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk" <!-- REPLACE WITH YOUR ACTUAL PUBLISHABLE KEY -->
         onload="startClerk()"
     ></script>
 
-    <!-- Our custom script that USES Clerk -->
+    <!-- 
+      This is our custom script, wrapped in a function to prevent errors.
+    -->
     <script>
         function startClerk() {
+            // This function only runs after Clerk is fully loaded.
             const Clerk = window.Clerk;
             const signUpComponent = document.getElementById('sign-up');
-            
-            // Mount the pre-built Sign Up component
-            Clerk.mountSignUp(signUpComponent, {
-                 // Clerk will handle the redirect automatically based on the paths you set in the dashboard.
-            });
+
+            // Tell Clerk to render its pre-built Sign Up form inside our 'sign-up' div.
+            Clerk.mountSignUp(signUpComponent);
         }
     </script>
+
+</body>
+</html>" <!-- REPLACE WITH YOUR ACTUAL PUBLISHABLE KEY -->
+        onload="startClerk()"
+    ></script>
+
+    <!-- 
+      This is our custom script, wrapped in a function to prevent errors.
+    -->
+    <script>
+        function startClerk() {
+            // This function only runs after Clerk is fully loaded.
+            const Clerk = window.Clerk;
+            const signUpComponent = document.getElementById('sign-up');
+
+            // Tell Clerk to render its pre-built Sign Up form inside our 'sign-up' div.
+            Clerk.mountSignUp(signUpComponent);
+        }
+    </script>
+
 </body>
 </html>

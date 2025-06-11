@@ -4,66 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Log In - Learn N Teach</title>
-
-    <!-- Link to Bootstrap for styling -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Custom styles to center the login form -->
     <style>
-        body { 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            min-height: 100vh; 
-            background-color: #f8f9fa; 
-        }
-        .clerk-container { 
-            width: 100%; 
-            max-width: 400px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            border-radius: 8px;
-            padding: 2rem;
-            background-color: white;
-        }
+        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background-color: #f8f9fa; }
+        .clerk-container { width: 100%; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; padding: 2rem; background-color: white; }
     </style>
 </head>
 <body>
-
-    <!-- This is the container where Clerk will render the login form -->
     <div class="clerk-container">
         <div id="sign-in"></div>
     </div>
 
-    <!-- 
-      *** THE IMPORTANT PART - LOADING THE CLERK SCRIPT ***
-      1. 'async' lets the rest of the page load without waiting for this script.
-      2. 'data-clerk-publishable-key' passes your key to Clerk in the recommended way.
-      3. 'onload="startClerk()"' is the crucial fix. It tells the browser: "Only after this script
-         is completely downloaded and ready, execute the function called startClerk()".
-    -->
     <script async src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
-        data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk" <!-- REPLACE WITH YOUR ACTUAL PUBLISHABLE KEY -->
+        data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk" <!-- REPLACE WITH YOUR KEY -->
         onload="startClerk()"
     ></script>
 
-    <!-- 
-      This is our custom script. It's now safely wrapped in a function that only
-      runs after Clerk is ready, preventing the "undefined" error.
-    -->
     <script>
         function startClerk() {
-            // By the time this function runs, we know window.Clerk exists.
             const Clerk = window.Clerk;
             const signInComponent = document.getElementById('sign-in');
-
-            // Tell Clerk to render its pre-built Sign In form inside our 'sign-in' div.
             Clerk.mountSignIn(signInComponent);
-            
-            // Note: We don't need to specify 'afterSignInUrl' here anymore.
-            // Clerk will automatically use the paths you configured in the Clerk Dashboard,
-            // which is better practice.
         }
     </script>
-
 </body>
 </html>
