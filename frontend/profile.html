@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Profile - Learn N Teach</title>
+</head>
+<body>
+    <template>
+        <div class="container py-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <!-- Profile Picture and Core Info Card -->
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <img id="profile-pic" src="https://via.placeholder.com/150" class="rounded-circle mb-3" width="150" height="150" alt="Profile Picture">
+                            <h4 id="profile-name">...</h4>
+                            <p id="profile-headline" class="text-muted">...</p>
+                            <p class="text-muted">@<span id="profile-username">...</span></p>
+                            <button class="btn btn-outline-primary btn-sm" disabled>Edit Profile (Coming Soon)</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <!-- Detailed Information -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h4>My Profile Details</h4>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item"><strong>Primary Goal:</strong> <span id="profile-goal">...</span></li>
+                                <li class="list-group-item"><strong>Email:</strong> <span id="profile-email">...</span></li>
+                                <li class="list-group-item"><strong>Languages:</strong> <span id="profile-langs">...</span></li>
+                                <li class="list-group-item"><strong>Points:</strong> <span id="profile-points" class="fw-bold">...</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <!-- Badges Section -->
+                    <div class="card mt-4">
+                        <div class="card-header"><h4>My Badges</h4></div>
+                        <div id="profile-badges" class="card-body">
+                           <p class="text-muted">You haven't earned any badges yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script src="/js/layout.js"></script>
+    <script src="/js/profile.js"></script> <!-- New JS file for this page -->
+    <script>
+        function onClerkReady() {
+            if (window.Clerk) {
+                initializeProfilePage(window.Clerk);
+            }
+        }
+    </script>
+</body>
+</html>

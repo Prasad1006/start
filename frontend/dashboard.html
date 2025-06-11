@@ -23,24 +23,15 @@
                     </div>
                 </div>
             </div>
-            
-            <hr class="my-5">
-            
-            <div id="teaching-section" style="display: none;">
-                <h2 class="h4">My Teaching</h2>
-                <div id="teaching-dashboard-summary"></div>
-            </div>
         </div>
     </template>
 
     <script src="/js/layout.js"></script>
-    <script src="/js/dashboard.js"></script>
+    <script src="/js/dashboard.js"></script> 
     <script>
-        // This global function is the hook that navigation.js will trigger
-        // once it knows the user's login state.
+        // This function is the hook that navigation.js will trigger
         function onClerkReady() {
              if (window.Clerk) {
-                // Now it's safe to call our dashboard-specific logic.
                 initializeDashboard(window.Clerk);
             }
         }
