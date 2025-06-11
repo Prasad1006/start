@@ -1,41 +1,61 @@
-// frontend/js/navigation.js
+// frontend/js/navigation.js (The New, Clean Version)
 
-// Put your Clerk Publishable Key here
-const CLERK_PUBLISHABLE_KEY = "pk_test_dG91Y2hpbmctbW9zcXVpdG8tOTAuY2xlcmsuYWNjb3VudHMuZGV2JA"; // Replace with your actual key
-
-document.addEventListener('DOMContentLoaded', async () => {
+// This function will run after the main Clerk script on the page has loaded.
+// It assumes 'window.Clerk' already exists.
+function setupClerkUI() {
     const Clerk = window.Clerk;
 
-    try {
-        await Clerk.load({
-            // You can customize the appearance of Clerk components here
-        });
+    if (!Clerk) {
+        console.error("Clerk object not found. Make sure the Clerk script is loaded before navigation.js");
+        return;
+    }
 
+    const userButton = document.getElementById('user-button');
+    const authButtons = document.getElementById('auth-buttons');
+    const signOutButton = document.getElementById('sign-out-button'); // This might be on other pages
+
+    // This listener will automatically update the UI whenever the user's state changes (login, logout, etc.)
+    Clerk.addListener(({ user }) => {
+        if clean up all the relevant files to use the modern, recommended `onload` pattern.
+
+#### **Step 1: Fix `navigation.js`**
+
+This file should **not** declare the key. It should just contain the logic that needs to run *after* Clerk is loaded.
+
+**Action:** Open `frontend/js/navigation.js` and replace its **entire content** with this:
+
+```javascript
+// frontend/js/navigation.js
+
+// We wrap our entire logic in a function.
+// This function will be called by the 'onload' attribute in the main Clerk script tag.
+function initializeClerkNavigation() {
+    const Clerk = window.Clerk;
+
+    // This code will only run AFTER Clerk is loaded, preventing errors.
+    try {
         const userButton = document.getElementById('user-button');
         const authButtons = document.getElementById('auth-buttons');
-        const signOutButton = document.getElementById('sign-out-button');
-
+        
+        // This listener will update the UI whenever the user's login state changes.
         Clerk.addListener(({ user }) => {
             if (user) {
-                // If user is signed in
+                // User is signed in
                 authButtons.style.display = 'none';
-                userButton.style.display = 'block';
-                userButton.innerHTML = `<a href="/dashboard.html" class="btn btn-outline-light me-2">Dashboard</a> <div class="text-white">Welcome, ${user.firstName || user.username}</div>`;
+                userButton.style.display = 'flex'; // Use flex for better alignment
+                // Create a more robust user button with a dropdown
+                userButton.innerHTML = `
+                    <div class="text-white me-3">Welcome, ${user.firstName || user.username}</div>
+                    <a href="/dashboard.html" class="btn btn-sm btn-outline-light">Dashboard</a>
+                `;
             } else {
-                // If user is signed out
+                // User is signed out
                 authButtons.style.display = 'block';
                 userButton.style.display = 'none';
             }
         });
 
-        if (signOutButton) {
-            signOutButton.addEventListener('click', async () => {
-                await Clerk.signOut();
-                window.location.href = '/login.html';
-            });
-        }
-
     } catch (err) {
-        console.error('Clerk error:', err);
+        console.error('Clerk navigation setup error:', err);
     }
-});
+}
