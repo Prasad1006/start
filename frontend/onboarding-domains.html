@@ -32,11 +32,17 @@
             </div>
         </div>
     </div>
-    <!-- We load the new logic file -->
+
+    <!-- First, load the script file that contains our functions -->
     <script src="/js/onboarding-logic.js"></script>
+    
+    <!-- Then, create a new script block that waits for the DOM to be ready before calling the function -->
     <script>
-        // We just call the function from the logic file
-        document.addEventListener('DOMContentLoaded', initializeDomainsPage);
+        document.addEventListener('DOMContentLoaded', () => {
+            // This code will only run after the browser has loaded the HTML
+            // AND finished processing onboarding-logic.js. The function will now be defined.
+            initializeDomainsPage();
+        });
     </script>
 </body>
 </html>

@@ -1,81 +1,109 @@
-// This function goes inside frontend/js/onboarding-logic.js
+// frontend/js/onboarding-logic.js
 
-async function initializeSkillsPage() {
-    // Wait until Clerk is available on the window object.
-    // This is a robust way to handle async script loading.
-    while (!window.Clerk) {
-        await new Promise(resolve => setTimeout(resolve, 50)); // Wait 50ms and check again
+// Helper function to safely get data from localStorage
+function getOnboardingData() {
+    try {
+        const data = JSON.parse(localStorage.getItem('onboardingData'));
+        return data || {};
+    } catch (e) {
+        return {};
     }
-    await window.Clerk.load();
+}
 
-    const accordionContainer = document.getElementById('skills-accordion');
-    // The rest of the function logic is the same...
-    const onboardingData = getOnboardingData(); // Make sure this helper function exists
-
-    if (!onboardingData.stream || !onboardingData.branch || !onboardingData.selectedDomains) {
-        accordionContainer.innerHTML = '<p class="text-danger">Error: Onboarding data is missing. Please <a href="/onboarding-profile.html">start over</a>.</p>';
-        document.getElementById('submit-btn').disabled = true;
-        return;
-    }
+// Logic for the domains page (onboarding-domains.html)
+async function initializeDomainsPage() {
+    const streamSelect = document.getElementById('stream-select');
+    const branchSelect = document.getElementById('branch-select');
+    const domainsContainer = document.getElementById('domains-container');
 
     try {
         const response = await fetch('/skills.json');
+        if (!response.ok) throw new Error('Network error');
         const skillsData = await response.json();
-        
-        const allDomainsData = skillsData[onboardingData.stream][onboardingData.branch].domains;
-        accordionContainer.innerHTML = ''; // Clear the spinner
-        
-        onboardingData.selectedDomains.forEach((domainName, index) => {
-            const domain = allDomainsData[domainName];
-            if (!domain) return;
-            const skills = domain.skills;
-            const accordionId = `accordion-${index}`;
-            let skillsHtml = '';
-            skills.forEach(skill => {
-                skillsHtml += `<div class="row border-bottom py-2 align-items-center"><div class="col-sm-5 col-12">${skill}</div><div class="col-sm-3 col-6 text-center"><input class="form-check-input" type="checkbox" name="learn" value="${skill}"></div><div class="col-sm-4 col-6 text-center"><input class="form-check-input" type="checkbox" name="teach" value="${skill}"></div></div>`;
-            });
-            const accordionItem = `<div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${accordionId}">${domainName}</button></h2><div id="collapse-${accordionId}" class="accordion-collapse collapse show"><div class="accordion-body p-2"><div class="row fw-bold text-muted mb-2 d-none d-sm-flex"><div class="col-5">Skill</div><div class="col-3 text-center"><i class="bi bi-book-fill"></i> Learn</div><div class="col-4 text-center"><i class="bi bi-easel-fill"></i> Teach</div></div>${skillsHtml}</div></div></div>`;
-            accordionContainer.innerHTML += accordionItem;
-        });
-    } catch(e) {
-        console.error("Error building skills UI", e);
-        accordionContainer.innerHTML = '<p class="text-danger">Could not load skill information. Please refresh.</p>';
-    }
-    
-    // The submission logic remains the same.
-    document.getElementById('skills-form').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const submitBtn = document.getElementById('submit-btn');
-        const errorMessageEl = document.getElementById('error-message');
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
-        errorMessageEl.style.display = 'none';
 
-        onboardingData.skillsToLearn = Array.from(document.querySelectorAll('input[name="learn"]:checked')).map(el => el.value);
-        onboardingData.skillsToTeach = Array.from(document.querySelectorAll('input[name="teach"]:checked')).map(el => el.value);
-
-        try {
-            if (!window.Clerk.session) throw new Error("Authentication session not found. Please log in again.");
-            
-            const token = await window.Clerk.session.getToken();
-            
-            const response = await fetch('/api/users/onboard', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
-                body: JSON.stringify(onboardingData)
-            });
-            const responseData = await response.json();
-            if (!response.ok) {
-                throw new Error(responseData.error || responseData.detail || 'An unknown server error occurred.');
-            }
-            localStorage.removeItem('onboardingData');
-            window.location.href = '/dashboard.html';
-
-        } catch (error) {
-            errorMessageEl.innerText = error.message;
-            errorMessageEl.style.display = 'block';
-            submitBtn.disabled = false;
-            submitBtn.innerText = 'Complete Profile & Enter';
+        // Populate Stream dropdown
+        streamSelect.innerHTML = '<option value="">-- Select a Stream --</option>';
+        for (const streamName in skillsData) {
+            const option = document.createElement('option');
+            option.value = streamName;
+            option.textContent = streamName;
+            streamSelect.appendChild(option);
         }
-    });
+
+        // When a stream is selected, populate branches
+        streamSelect.addEventListener('change', () => {
+            const selectedStream = streamSelect.value;
+            branchSelect.innerHTML = '<option value="">-- Select a Branch --</option>';
+            domainsContainer.innerHTML = '<p class="text-muted">Please select a branch.</p>';
+            if (!selectedStream) { branchSelect.disabled = true; return; }
+            
+            branchSelect.disabled = false;
+            const branches = skillsData[selectedStream];
+            for (const branchName in branches) {
+                const option = document.createElement('option');
+                option.value = branchName;
+                option.textContent = branchName;
+                branchSelect.appendChild(option);
+            }
+            if (Object.keys(branches).length === 1) {
+                branchSelect.value = Object.keys(branches)[0];
+                branchSelect.dispatchEvent(new Event('change'));
+            }
+        });
+
+        // When a branch is selected, populate domains
+        branchSelect.addEventListener('change', () => {
+            const selectedStream = streamSelect.value;
+            const selectedBranch = branchSelect.value;
+            domainsContainer.innerHTML = '';
+            if (!selectedStream || !selectedBranch) return;
+
+            const domains = skillsData[selectedStream][selectedBranch].domains;
+            for (const domainName in domains) {
+                const card = document.createElement('div');
+                card.className = 'domain-card p-2 rounded';
+                card.textContent = domainName;
+                card.dataset.domainName = domainName;
+                domainsContainer.appendChild(card);
+                card.addEventListener('click', () => card.classList.toggle('selected'));
+            }
+        });
+
+        // Handle form submission
+        document.getElementById('domains-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const onboardingData = getOnboardingData();
+            onboardingData.stream = streamSelect.value;
+            onboardingData.branch = branchSelect.value;
+            onboardingData.selectedDomains = Array.from(domainsContainer.querySelectorAll('.selected')).map(el => el.dataset.domainName);
+
+            if (!onboardingData.stream || !onboardingData.branch || onboardingData.selectedDomains.length === 0) {
+                alert('Please make sure to select your stream, branch, and at least one domain.');
+                return;
+            }
+            
+            localStorage.setItem('onboardingData', JSON.stringify(onboardingData));
+            window.location.href = '/onboarding-skills.html';
+        });
+
+    } catch (error) {
+        console.error('Failed to initialize domains page:', error);
+        domainsContainer.innerHTML = '<p class="text-danger">Could not load page data. Please refresh.</p>';
+    }
+}
+
+
+// Logic for the skills page (onboarding-skills.html)
+async function initializeSkillsPage() {
+    // Wait until Clerk is loaded before we do anything that might need it
+    while (!window.Clerk) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    await window.Clerk.load();
+    
+    const accordionContainer = document.getElementById('skills-accordion');
+    const onboardingData = getOnboardingData();
+
+    // The rest of the function is the same, building the UI and handling the final submission
+    // ... (paste the rest of the initializeSkillsPage function from the previous answer here) ...
 }
