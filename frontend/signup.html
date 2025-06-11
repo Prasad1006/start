@@ -23,8 +23,12 @@
             const Clerk = window.Clerk;
             try {
                 await Clerk.load();
+                 if (Clerk.user) {
+                    window.location.href = '/dashboard.html';
+                    return;
+                }
                 Clerk.mountSignUp(document.getElementById('sign-up'), {
-                    afterSignUpUrl: '/onboarding-profile.html'
+                    afterSignUpUrl: '/onboarding-profile.html' // Redirect to the start of our onboarding flow
                 });
             } catch (error) {
                 console.error("Clerk mounting error:", error);

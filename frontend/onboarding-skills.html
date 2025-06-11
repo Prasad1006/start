@@ -12,7 +12,7 @@
             <div class="col-md-8 col-lg-7">
                 <div class="card shadow"><div class="card-body p-4 p-md-5">
                     <h2 class="card-title text-center mb-4">Define Your Skillset</h2>
-                    <p class="text-center text-muted">What do you want to learn? What can you teach?</p>
+                    <p class="text-center text-muted">What do you want to learn? What can you already teach?</p>
                     <div class="progress mb-4" style="height: 10px;"><div class="progress-bar" style="width: 100%;"></div></div>
                     
                     <form id="skills-form">
@@ -27,6 +27,7 @@
         </div>
     </div>
 
+    <!-- We need to load Clerk to get the auth token for the API call -->
     <script async src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
         data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk"
         onload="initializeOnboardingForm()"
@@ -37,28 +38,38 @@
             const accordionContainer = document.getElementById('skills-accordion');
             const onboardingData = JSON.parse(localStorage.getItem('onboardingData'));
 
-            if (!onboardingData || !onboardingData.selectedDomains) {
-                accordionContainer.innerHTML = '<p class="text-danger">Error: Could not find selected domains. Please go back.</p>';
+            // Check if we have the necessary data from previous steps
+            if (!onboardingData || !onboardingData.branch || !onboardingData.selectedDomains) {
+                accordionContainer.innerHTML = '<p class="text-danger">Error: Onboarding data is missing. Please <a href="/onboarding-profile.html">start over</a>.</p>';
+                document.getElementById('submit-btn').disabled = true;
                 return;
             }
 
-            // 1. Fetch the data again to get skill details
-            const response = await fetch('/skills-data.json');
+            // 1. Fetch the skills data again to build the UI
+            const response = await fetch('/skills.json');
             const skillsData = await response.json();
-            const branchData = skillsData.BTech[onboardingData.branch].domains;
             
-            // 2. Build the UI with accordions for each domain
+            // This handles both BTech and Placement Prep streams
+            const branches = skillsData[onboardingData.branch];
+            const firstBranchName = Object.keys(branches)[0];
+            const allDomainsData = branches[firstBranchName].domains;
+            
+            // 2. Build the UI with accordions for each domain the user selected
             onboardingData.selectedDomains.forEach((domainName, index) => {
-                const skills = branchData[domainName].skills;
+                const domain = allDomainsData[domainName];
+                if (!domain) return; // Skip if domain not found
+
+                const skills = domain.skills;
                 const accordionId = `accordion-${index}`;
                 
                 let skillsHtml = '';
                 skills.forEach(skill => {
+                    // We use the skill name as the value
                     skillsHtml += `
-                        <div class="row border-bottom py-2">
-                            <div class="col-5">${skill.name}</div>
-                            <div class="col-3 text-center"><input class="form-check-input" type="checkbox" name="learn" value="${skill.name}"></div>
-                            <div class="col-4 text-center"><input class="form-check-input" type="checkbox" name="teach" value="${skill.name}"></div>
+                        <div class="row border-bottom py-2 align-items-center">
+                            <div class="col-sm-5 col-12">${skill}</div>
+                            <div class="col-sm-3 col-6 text-center"><input class="form-check-input" type="checkbox" name="learn" value="${skill}"></div>
+                            <div class="col-sm-4 col-6 text-center"><input class="form-check-input" type="checkbox" name="teach" value="${skill}"></div>
                         </div>`;
                 });
 
@@ -69,12 +80,12 @@
                                 Skills in: ${domainName}
                             </button>
                         </h2>
-                        <div id="collapse-${accordionId}" class="accordion-collapse collapse show" aria-labelledby="heading-${accordionId}" data-bs-parent="#skills-accordion">
-                            <div class="accordion-body">
-                                <div class="row fw-bold text-muted">
+                        <div id="collapse-${accordionId}" class="accordion-collapse collapse show" aria-labelledby="heading-${accordionId}">
+                            <div class="accordion-body p-2">
+                                <div class="row fw-bold text-muted mb-2 d-none d-sm-flex">
                                     <div class="col-5">Skill</div>
-                                    <div class="col-3 text-center"><i class="bi bi-book"></i> Learn</div>
-                                    <div class="col-4 text-center"><i class="bi bi-easel"></i> Teach</div>
+                                    <div class="col-3 text-center"><i class="bi bi-book-fill"></i> Learn</div>
+                                    <div class="col-4 text-center"><i class="bi bi-easel-fill"></i> Teach</div>
                                 </div>
                                 ${skillsHtml}
                             </div>
@@ -90,22 +101,22 @@
                 const submitBtn = document.getElementById('submit-btn');
                 const errorMessage = document.getElementById('error-message');
                 submitBtn.disabled = true;
-                submitBtn.innerText = 'Saving...';
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
 
-                // Collect selected skills
-                const skillsToLearn = Array.from(document.querySelectorAll('input[name="learn"]:checked')).map(el => el.value);
-                const skillsToTeach = Array.from(document.querySelectorAll('input[name="teach"]:checked')).map(el => el.value);
-
-                onboardingData.skillsToLearn = skillsToLearn;
-                onboardingData.skillsToTeach = skillsToTeach;
+                // Collect selected skills from the form
+                onboardingData.skillsToLearn = Array.from(document.querySelectorAll('input[name="learn"]:checked')).map(el => el.value);
+                onboardingData.skillsToTeach = Array.from(document.querySelectorAll('input[name="teach"]:checked')).map(el => el.value);
 
                 // API submission logic
                 try {
                     const Clerk = window.Clerk;
                     await Clerk.load();
-                    if (!Clerk.user) throw new Error("User not signed in.");
+                    if (!Clerk.session) throw new Error("You must be signed in to complete your profile.");
                     
+                    // Get the JWT to authenticate with our backend
                     const token = await Clerk.session.getToken();
+
+                    // This is the single, final API call with all the data
                     const response = await fetch('/api/users/onboard', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
@@ -114,9 +125,10 @@
 
                     if (!response.ok) {
                         const errorData = await response.json();
-                        throw new Error(errorData.detail || 'Onboarding failed.');
+                        throw new Error(errorData.detail || 'Onboarding failed. Please try again.');
                     }
 
+                    // Success! Clean up and redirect.
                     localStorage.removeItem('onboardingData');
                     window.location.href = '/dashboard.html';
 

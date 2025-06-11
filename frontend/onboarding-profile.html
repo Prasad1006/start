@@ -16,18 +16,20 @@
                     <form id="profile-form">
                         <div class="mb-3">
                             <label for="username" class="form-label">Create a Username*</label>
-                            <input type="text" class="form-control" id="username" required pattern="^[a-zA-Z0-9_]{3,15}$" title="3-15 characters, letters, numbers, underscores.">
+                            <input type="text" class="form-control" id="username" required pattern="^[a-zA-Z0-9_]{3,20}$" title="3-20 characters, letters, numbers, underscores.">
                         </div>
                          <div class="mb-3">
                             <label for="headline" class="form-label">Your Headline*</label>
-                            <input type="text" class="form-control" id="headline" placeholder="e.g., Aspiring Data Scientist" required>
+                            <input type="text" class="form-control" id="headline" placeholder="e.g., Aspiring Data Scientist | CSE Student" required>
                         </div>
                         <div class="mb-3">
-                            <label for="primaryGoal" class="form-label">Primary Goal*</label>
+                            <label for="primaryGoal" class="form-label">What's Your Primary Goal on this Platform?*</label>
                             <select class="form-select" id="primaryGoal" required>
+                                <option value="">-- Select a Goal --</option>
                                 <option value="Get an Internship/Job">Get an Internship/Job</option>
-                                <option value="Explore new skills">Explore new skills</option>
-                                <option value="Help others by teaching">Help others by teaching</option>
+                                <option value="Build my Skills for Projects">Build my Skills for Projects</option>
+                                <option value="Master my College Subjects">Master my College Subjects</option>
+                                <option value="Explore Different Technologies">Explore Different Technologies</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -35,7 +37,7 @@
                             <div class="form-check"><input class="form-check-input" type="checkbox" value="English" id="lang-en" checked><label class="form-check-label" for="lang-en">English</label></div>
                             <div class="form-check"><input class="form-check-input" type="checkbox" value="Hindi" id="lang-hi"><label class="form-check-label" for="lang-hi">Hindi</label></div>
                         </div>
-                        <div class="d-grid"><button type="submit" class="btn btn-primary btn-lg">Next: Select Your Domain</button></div>
+                        <div class="d-grid"><button type="submit" class="btn btn-primary btn-lg">Next: Select Your Field</button></div>
                     </form>
                 </div></div>
             </div>
@@ -49,7 +51,6 @@
                 headline: document.getElementById('headline').value,
                 primaryGoal: document.getElementById('primaryGoal').value,
                 preferredLanguages: Array.from(document.querySelectorAll('input[type=checkbox]:checked')).map(el => el.value),
-                profilePictureUrl: "" // Will be implemented later
             };
             localStorage.setItem('onboardingData', JSON.stringify(onboardingData));
             window.location.href = '/onboarding-domains.html';
