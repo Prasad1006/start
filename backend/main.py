@@ -97,18 +97,50 @@ async def get_onboarding_status(current_user: dict = Depends(get_current_user)):
         return {"status": "completed"}
     return {"status": "pending"}
 
+
+
 @app.get("/api/dashboard", response_model=DashboardData)
 async def get_dashboard_data(current_user: dict = Depends(get_current_user)):
-    username = current_user.get("username")
-    if not username: raise HTTPException(status_code=403, detail="Username not found")
+    """
+    Fetches and aggregates all data needed for the main user dashboard.
+    """
+    # Use the unique user ID from the token for database queries
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=403, detail="User ID not found in token")
+
     try:
-        user_profile = users_collection.find_one({"username": username})
-        if not user_profile: raise HTTPException(status_code=404, detail="User profile not found")
+        if users_collection is None:
+            raise Exception("Database service is unavailable.")
+
+        user_profile = users_collection.find_one({"userId": user_id})
+        if not user_profile:
+            # This is a critical check. If the user exists in Clerk but not our DB,
+            # something is wrong. We can even force a re-onboarding.
+            raise HTTPException(status_code=404, detail="User profile not found in our database.")
         
         points = user_profile.get("points", 0)
         is_tutor = user_profile.get("tutorProfile", {}).get("isTutor", False)
-        learning_tracks = [] # Placeholder until roadmaps are built
+        
+        # In V1, this will be empty as we haven't built roadmaps yet.
+        # This is placeholder logic for the future.
+        learning_tracks = []
+        # Example of future logic:
+        # roadmaps_cursor = roadmaps_collection.find({"userId": user_id})
+        # for roadmap in roadmaps_cursor:
+        #     learning_tracks.append(...)
         
         return {"points": points, "isTutor": is_tutor, "learningTracks": learning_tracks}
     except Exception as e:
+        print(f"!!! ERROR fetching dashboard data: {e}", file=sys.stderr)
         raise HTTPException(status_code=500, detail="Could not fetch dashboard data.")
+    
+
+@app.get("/api/profile")
+async def get_my_profile(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("sub")
+    user_profile = users_collection.find_one({"userId": user_id})
+    if not user_profile:
+        raise HTTPException(status_code=404, detail="Profile not found.")
+    user_profile["_id"] = str(user_profile["_id"]) # Convert ObjectId for JSON
+    return user_profile
