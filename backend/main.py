@@ -1,7 +1,6 @@
-# backend/main.py
-
 import os
 from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
@@ -9,15 +8,17 @@ from jose import jwt, JWTError
 import requests
 from .database import users_collection # Import our MongoDB collection
 
-# Load environment variables
+# Load environment variables for local dev
 from dotenv import load_dotenv
 load_dotenv()
 
 # --- Configuration & Models ---
 app = FastAPI()
 CLERK_JWT_ISSUER = os.getenv("CLERK_JWT_ISSUER")
+
+# This is a startup check to fail fast if config is missing
 if not CLERK_JWT_ISSUER:
-    raise Exception("FATAL ERROR: CLERK_JWT_ISSUER environment variable is not set.")
+    raise RuntimeError("FATAL ERROR: CLERK_JWT_ISSUER environment variable is not set.")
 
 # This Pydantic model validates the incoming data from the frontend
 class OnboardingData(BaseModel):
@@ -31,42 +32,25 @@ class OnboardingData(BaseModel):
     skillsToTeach: List[str] = []
 
 # --- Authentication Dependency ---
-# This is a reusable function to get the current user from the Clerk token
+# This function is the gatekeeper for our protected routes
 async def get_current_user(request: Request):
     auth_header = request.headers.get('Authorization')
-    if not auth_header:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authorization header missing")
-
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authorization header missing or invalid")
+    
     token = auth_header.split(" ")[1]
     
     try:
-        # Fetch the JWKS from Clerk to get the public key for verification
         jwks_url = f"{CLERK_JWT_ISSUER}/.well-known/jwks.json"
         jwks = requests.get(jwks_url).json()
-        
-        # Decode and verify the token
         unverified_header = jwt.get_unverified_header(token)
-        rsa_key = {}
-        for key in jwks["keys"]:
-            if key["kid"] == unverified_header["kid"]:
-                rsa_key = {
-                    "kty": key["kty"],
-                    "kid": key["kid"],
-                    "use": key["use"],
-                    "n": key["n"],
-                    "e": key["e"]
-                }
-        if rsa_key:
-            payload = jwt.decode(
-                token,
-                rsa_key,
-                algorithms=["RS256"],
-                issuer=CLERK_JWT_ISSUER
-            )
-            # The 'sub' claim is the user's unique ID from Clerk
-            return payload
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unable to find appropriate key")
-
+        rsa_key = next((key for key in jwks["keys"] if key["kid"] == unverified_header["kid"]), None)
+        
+        if not rsa_key:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unable to find appropriate key")
+            
+        payload = jwt.decode(token, rsa_key, algorithms=["RS256"], issuer=CLERK_JWT_ISSUER)
+        return payload
     except JWTError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token: {e}")
 
@@ -75,25 +59,26 @@ async def get_current_user(request: Request):
 @app.get("/api")
 def read_root():
     return {"message": "Welcome to Learn N Teach API!"}
-# backend/main.py
-
-# ... (all your existing imports and configurations) ...
-
-# ... (your existing get_current_user function) ...
 
 @app.post("/api/users/onboard", status_code=status.HTTP_201_CREATED)
 async def onboard_user(data: OnboardingData, current_user: dict = Depends(get_current_user)):
-    try: # <--- START OF THE TRY BLOCK
+    try:
         user_id = current_user.get("sub")
-        # I've noticed Clerk sometimes uses 'email_addresses' as an array. This is more robust.
-        email_addresses = current_user.get("email_addresses", [])
-        email = email_addresses[0] if email_addresses else None
+        
+        # Robustly get email and name from Clerk payload
+        email = current_user.get("email", "Not provided")
+        name = current_user.get("name", "")
+        if not name:
+             name = f"{current_user.get('firstName', '')} {current_user.get('lastName', '')}".strip()
 
-        if not user_id or not email:
-            raise HTTPException(status_code=400, detail="User ID or email not found in token.")
+        if not user_id:
+            raise HTTPException(status_code=400, detail="User ID not found in token.")
 
+        # Check for duplicates before attempting to insert
         if users_collection.find_one({"userId": user_id}):
-            raise HTTPException(status_code=400, detail="User profile already exists.")
+            # This user has already been onboarded.
+            # Instead of an error, we can just return their existing data.
+            return JSONResponse(status_code=200, content={"message": "User already onboarded."})
         if users_collection.find_one({"username": data.username}):
             raise HTTPException(status_code=400, detail="Username is already taken.")
 
@@ -101,7 +86,7 @@ async def onboard_user(data: OnboardingData, current_user: dict = Depends(get_cu
             "userId": user_id,
             "username": data.username,
             "email": email,
-            "name": current_user.get("firstName", ""),
+            "name": name,
             "headline": data.headline,
             "profilePictureUrl": current_user.get("imageUrl", ""),
             "points": 100,
@@ -126,14 +111,12 @@ async def onboard_user(data: OnboardingData, current_user: dict = Depends(get_cu
         users_collection.insert_one(user_document)
         user_document.pop('_id', None)
         return {"message": "Onboarding successful!", "user": user_document}
-
+    
     except HTTPException as e:
-        # Re-raise HTTPExceptions so FastAPI can handle them
+        # Re-raise known HTTP exceptions
         raise e
     except Exception as e:
-        # This catches ANY other unexpected crash (like a DB connection error)
-        print(f"!!! UNEXPECTED ONBOARDING ERROR: {e}") # This will show in Vercel logs
-        # And returns a clean JSON error to the frontend
-        raise HTTPException(status_code=500, detail="A server error occurred during onboarding.")
-    
- 
+        # This is the crucial catch-all for unexpected crashes (e.g., DB is down)
+        print(f"!!! FATAL ONBOARDING ERROR: {e}") # This will appear in your Vercel logs
+        # And we return a clean JSON error, not an HTML page
+        raise HTTPException(status_code=500, detail=f"An internal server error occurred: {e}")
