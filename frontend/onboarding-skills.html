@@ -7,113 +7,24 @@
 </head>
 <body class="bg-light">
     <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-md-8 col-lg-6" style="margin-top: 5vh;">
-                <div class="card shadow">
-                    <div class="card-body p-4 p-md-5">
-                        <h2 class="card-title text-center mb-4">A little more about you...</h2>
-                        <p class="text-center text-muted">(This information is private)</p>
-
-                        <div class="progress mb-4" style="height: 10px;">
-                            <div class="progress-bar" role="progressbar" style="width: 100%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+        <div class="row justify-content-center" style="padding-top: 5vh;">
+            <div class="col-md-8 col-lg-6">
+                <div class="card shadow"><div class="card-body p-4 p-md-5">
+                    <h2 class="card-title text-center mb-4">A little more about you...</h2>
+                    <div class="progress mb-4" style="height: 10px;"><div class="progress-bar" style="width: 100%;"></div></div>
+                    <form id="final-form">
+                        <div class="mb-3">
+                            <label for="institutionName" class="form-label">College / Institution Name (Optional)</label>
+                            <input type="text" class="form-control" id="institutionName">
                         </div>
-
-                        <form id="final-form">
-                            <div class="mb-3">
-                                <label for="institutionName" class="form-label">College / Institution Name (Optional)</label>
-                                <input type="text" class="form-control" id="institutionName">
-                            </div>
-                             <div class="mb-3">
-                                <label for="location" class="form-label">City / Location (Optional)</label>
-                                <input type="text" class="form-control" id="location">
-                            </div>
-                            <div id="error-message" class="alert alert-danger" style="display: none;"></div>
-                            <div class="d-grid">
-                                <button type="submit" id="submit-btn" class="btn btn-success btn-lg">Complete Profile & Enter</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <script async src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
-        data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk"
-        onload="initializeOnboardingForm()"
-    ></script>
-    
-    <script>
-        function initializeOnboardingForm() {
-            const form = document.getElementById('final-form');
-
-            form.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const submitBtn = document.getElementById('submit-btn');
-                const errorMessage = document.getElementById('error-message');
-                submitBtn.disabled = true;
-                submitBtn.innerText = 'Saving...';
-                errorMessage.style.display = 'none';
-
-                try {
-                    const Clerk = window.Clerk;
-                    await Clerk.load();
-
-                    if (!Clerk.user) {
-                        throw new Error("User not signed in. Please log in again.");
-                    }
-
-                    const onboardingData = JSON.parse(localStorage.getItem('onboardingData')) || {};
-                    onboardingData.institutionName = document.getElementById('institutionName').value;
-                    onboardingData.location = document.getElementById('location').value;
-
-                    const token = await Clerk.session.getToken();
-
-                    const response = await fetch('/api/users/onboard', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer ' + token
-                        },
-                        body: JSON.stringify(onboardingData)
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.detail || 'Something went wrong.');
-                    }
-
-                    localStorage.removeItem('onboardingData');
-                    window.location.href = '/dashboard.html';
-
-                } catch (error) {
-                    console.error('Onboarding failed:', error);
-                    errorMessage.innerText = error.message;
-                    errorMessage.style.display = 'block';
-                    submitBtn.disabled = false;
-                    submitBtn.innerText = 'Complete Profile & Enter';
-                }
-            });
-        }
-    </script>
-</body>
-</html>
-```form id="final-form">
-                            <div class="mb-3">
-                                <label for="institutionName" class="form-label">College / Institution Name (Optional)</label>
-                                <input type="text" class="form-control" id="institutionName">
-                            </div>
-                             <div class="mb-3">
-                                <label for="location" class="form-label">City / Location (Optional)</label>
-                                <input type="text" class="form-control" id="location">
-                            </div>
-                            <div id="error-message" class="alert alert-danger" style="display: none;"></div>
-                            <div class="d-grid">
-                                <button type="submit" id="submit-btn" class="btn btn-success btn-lg">Complete Profile & Enter</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                         <div class="mb-3">
+                            <label for="location" class="form-label">City / Location (Optional)</label>
+                            <input type="text" class="form-control" id="location">
+                        </div>
+                        <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+                        <div class="d-grid"><button type="submit" id="submit-btn" class="btn btn-success btn-lg">Complete Profile & Enter</button></div>
+                    </form>
+                </div></div>
             </div>
         </div>
     </div>
@@ -132,15 +43,12 @@
                 const errorMessage = document.getElementById('error-message');
                 submitBtn.disabled = true;
                 submitBtn.innerText = 'Saving...';
-                errorMessage.style.display = 'none';
 
                 try {
                     const Clerk = window.Clerk;
                     await Clerk.load();
 
-                    if (!Clerk.user) {
-                        throw new Error("User not signed in. Please log in again.");
-                    }
+                    if (!Clerk.user) { throw new Error("User not signed in."); }
 
                     const onboardingData = JSON.parse(localStorage.getItem('onboardingData')) || {};
                     onboardingData.institutionName = document.getElementById('institutionName').value;
@@ -149,10 +57,7 @@
                     const token = await Clerk.session.getToken();
                     const response = await fetch('/api/users/onboard', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer ' + token
-                        },
+                        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
                         body: JSON.stringify(onboardingData)
                     });
 
@@ -165,7 +70,6 @@
                     window.location.href = '/dashboard.html';
 
                 } catch (error) {
-                    console.error('Onboarding failed:', error);
                     errorMessage.innerText = error.message;
                     errorMessage.style.display = 'block';
                     submitBtn.disabled = false;

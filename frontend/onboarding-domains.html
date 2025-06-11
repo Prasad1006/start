@@ -4,14 +4,20 @@
     <meta charset="UTF-8">
     <title>Onboarding: Your Goals</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .form-check-label {
+            font-size: 1.1rem;
+        }
+    </style>
 </head>
 <body class="bg-light">
     <div class="container">
         <div class="row justify-content-center">
-            <div class="col-md-8 col-lg-6" style="margin-top: 5vh;">
+            <div class="col-md-8 col-lg-6" style="padding-top: 5vh;">
                 <div class="card shadow">
                     <div class="card-body p-4 p-md-5">
-                        <h2 class="card-title text-center mb-4">What's your main goal?</h2>
+                        <h2 class="card-title text-center mb-4">What brings you here?</h2>
+                        <p class="text-center text-muted">Let's personalize your experience.</p>
                         
                         <div class="progress mb-4" style="height: 10px;">
                             <div class="progress-bar" role="progressbar" style="width: 66%;" aria-valuenow="66" aria-valuemin="0" aria-valuemax="100"></div>
@@ -19,15 +25,17 @@
 
                         <form id="goals-form">
                             <div class="mb-3">
-                                <select class="form-select" id="primaryGoal" required>
+                                <label for="primaryGoal" class="form-label fw-bold">What is your primary goal?</label>
+                                <select class="form-select form-select-lg" id="primaryGoal" required>
                                     <option selected disabled value="">Choose one...</option>
                                     <option value="Get an Internship/Job">Get an Internship/Job</option>
-                                    <option value="Explore new skills">Explore new skills</option>
-                                    <option value="Help others by teaching">Help others by teaching</option>
+                                    <option value="Explore new skills">Explore new skills for a personal project</option>
+                                    <option value="Help others by teaching">Help others by teaching and build my profile</option>
+                                    <option value="Just exploring">I'm just exploring</option>
                                 </select>
                             </div>
-                             <div class="mb-3">
-                                <label class="form-label">Preferred Languages for Tutoring</label>
+                             <div class="mb-4">
+                                <label class="form-label fw-bold">Which languages do you prefer for teaching/learning?</label>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" value="English" id="lang-en" checked>
                                     <label class="form-check-label" for="lang-en">English</label>
@@ -36,7 +44,10 @@
                                     <input class="form-check-input" type="checkbox" value="Hindi" id="lang-hi">
                                     <label class="form-check-label" for="lang-hi">Hindi</label>
                                 </div>
-                                <!-- Add more languages as needed -->
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Other" id="lang-other">
+                                    <label class="form-check-label" for="lang-other">Other</label>
+                                </div>
                             </div>
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary btn-lg">Next: Final Step</button>
@@ -50,15 +61,21 @@
     <script>
         document.getElementById('goals-form').addEventListener('submit', function(e) {
             e.preventDefault();
-            // Retrieve existing data
+            
+            // Retrieve existing data from localStorage that was saved in the previous step.
+            // If nothing exists, create an empty object to avoid errors.
             const onboardingData = JSON.parse(localStorage.getItem('onboardingData')) || {};
             
-            // Add new data
+            // Add the new data from this page's form to the object.
             onboardingData.primaryGoal = document.getElementById('primaryGoal').value;
+            
+            // Get all the checked languages.
             onboardingData.preferredLanguages = Array.from(document.querySelectorAll('input[type=checkbox]:checked')).map(el => el.value);
 
-            // Save back to localStorage and move to the next page
+            // Save the updated object back to localStorage.
             localStorage.setItem('onboardingData', JSON.stringify(onboardingData));
+            
+            // Redirect the user to the final step.
             window.location.href = '/onboarding-skills.html';
         });
     </script>

@@ -8,11 +8,28 @@
     <style>
         body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background-color: #f8f9fa; }
         .clerk-container { width: 100%; max-width: 400px; }
->
+    </style>
+</head>
+<body>
+    <div id="sign-up" class="clerk-container"></div>
+
     <script async src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
         data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk"
-        onload="initializeClerkNavigation()"
+        onload="startClerk()"
     ></script>
 
+    <script>
+        async function startClerk() {
+            const Clerk = window.Clerk;
+            try {
+                await Clerk.load();
+                Clerk.mountSignUp(document.getElementById('sign-up'), {
+                    afterSignUpUrl: '/onboarding-profile.html'
+                });
+            } catch (error) {
+                console.error("Clerk mounting error:", error);
+            }
+        }
+    </script>
 </body>
 </html>

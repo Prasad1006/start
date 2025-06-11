@@ -21,10 +21,9 @@
     <script>
         async function startClerk() {
             const Clerk = window.Clerk;
-            const signInElement = document.getElementById('sign-in');
             try {
                 await Clerk.load();
-                Clerk.mountSignIn(signInElement, {
+                Clerk.mountSignIn(document.getElementById('sign-in'), {
                     afterSignInUrl: '/dashboard.html'
                 });
             } catch (error) {

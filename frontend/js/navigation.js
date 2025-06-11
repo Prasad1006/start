@@ -15,7 +15,6 @@ function initializeClerkNavigation() {
             if (authButtons) authButtons.style.display = 'none';
             if (userButton) {
                 userButton.style.display = 'flex';
-                
                 userButton.innerHTML = `
                     <div class="navbar-text text-white me-3">Welcome, ${user.firstName || user.username}</div>
                     <a href="/dashboard.html" class="btn btn-sm btn-outline-light">Dashboard</a>
