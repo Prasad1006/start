@@ -75,56 +75,65 @@ async def get_current_user(request: Request):
 @app.get("/api")
 def read_root():
     return {"message": "Welcome to Learn N Teach API!"}
+# backend/main.py
+
+# ... (all your existing imports and configurations) ...
+
+# ... (your existing get_current_user function) ...
 
 @app.post("/api/users/onboard", status_code=status.HTTP_201_CREATED)
 async def onboard_user(data: OnboardingData, current_user: dict = Depends(get_current_user)):
-    user_id = current_user.get("sub")
-    email = current_user.get("primaryEmailAddress") or current_user.get("email") # Get email from token
+    try: # <--- START OF THE TRY BLOCK
+        user_id = current_user.get("sub")
+        # I've noticed Clerk sometimes uses 'email_addresses' as an array. This is more robust.
+        email_addresses = current_user.get("email_addresses", [])
+        email = email_addresses[0] if email_addresses else None
 
-    if not user_id or not email:
-        raise HTTPException(status_code=400, detail="User ID or email not found in token.")
+        if not user_id or not email:
+            raise HTTPException(status_code=400, detail="User ID or email not found in token.")
 
-    # Check if a user with this Clerk ID or username already exists
-    if users_collection.find_one({"userId": user_id}):
-        raise HTTPException(status_code=400, detail="User profile already exists.")
-    if users_collection.find_one({"username": data.username}):
-        raise HTTPException(status_code=400, detail="Username is already taken.")
+        if users_collection.find_one({"userId": user_id}):
+            raise HTTPException(status_code=400, detail="User profile already exists.")
+        if users_collection.find_one({"username": data.username}):
+            raise HTTPException(status_code=400, detail="Username is already taken.")
 
-    # This is where we build the rich user document based on our schema
-    user_document = {
-        "userId": user_id,
-        "username": data.username,
-        "email": email,
-        "name": current_user.get("firstName", ""), # Get name from Clerk token if available
-        "headline": data.headline,
-        "profilePictureUrl": current_user.get("imageUrl", ""),
-        "points": 100, # Give bonus points for completing onboarding
-        "badges": ["The Trailblazer"],
-        "primaryGoal": data.primaryGoal,
-        "preferredLanguages": data.preferredLanguages,
-        "createdAt": datetime.utcnow(),
-        "privateData": {
-            "institutionName": "Not Provided", # Can be added later
-            "location": "Not Provided"
-        },
-        "learningProfile": {
-            "branch": data.branch,
-            "domains": data.selectedDomains,
-            "skillsToLearn": data.skillsToLearn
-        },
-        "tutorProfile": {
-            "isTutor": len(data.skillsToTeach) > 0,
-            "averageRating": 0,
-            "totalSessionsTaught": 0,
-            # We will only add modules here after they pass the eligibility quiz
-            "teachableModules": [] 
+        user_document = {
+            "userId": user_id,
+            "username": data.username,
+            "email": email,
+            "name": current_user.get("firstName", ""),
+            "headline": data.headline,
+            "profilePictureUrl": current_user.get("imageUrl", ""),
+            "points": 100,
+            "badges": ["The Trailblazer"],
+            "primaryGoal": data.primaryGoal,
+            "preferredLanguages": data.preferredLanguages,
+            "createdAt": datetime.utcnow(),
+            "privateData": {"institutionName": "Not Provided", "location": "Not Provided"},
+            "learningProfile": {
+                "branch": data.branch,
+                "domains": data.selectedDomains,
+                "skillsToLearn": data.skillsToLearn
+            },
+            "tutorProfile": {
+                "isTutor": len(data.skillsToTeach) > 0,
+                "averageRating": 0,
+                "totalSessionsTaught": 0,
+                "teachableModules": []
+            }
         }
-    }
 
-    # Insert the new user document into the database
-    try:
-        result = users_collection.insert_one(user_document)
-        user_document.pop('_id') # Don't send the ObjectId back
+        users_collection.insert_one(user_document)
+        user_document.pop('_id', None)
         return {"message": "Onboarding successful!", "user": user_document}
+
+    except HTTPException as e:
+        # Re-raise HTTPExceptions so FastAPI can handle them
+        raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database insertion failed: {e}")
+        # This catches ANY other unexpected crash (like a DB connection error)
+        print(f"!!! UNEXPECTED ONBOARDING ERROR: {e}") # This will show in Vercel logs
+        # And returns a clean JSON error to the frontend
+        raise HTTPException(status_code=500, detail="A server error occurred during onboarding.")
+    
+ 
