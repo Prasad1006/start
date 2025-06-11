@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Onboarding (2/3): Your Field</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>.domain-card { cursor: pointer; border: 1px solid #dee2e6; transition: all 0.2s ease-in-out; } .domain-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); } .domain-card.selected { border-width: 2px; border-color: #0d6efd; background-color: #e7f1ff; }</style>
+    <style>.domain-card { cursor: pointer; border: 1px solid #dee2e6; } .domain-card.selected { border-width: 2px; border-color: #0d6efd; background-color: #e7f1ff; }</style>
 </head>
 <body class="bg-light">
     <div class="container">
@@ -13,15 +13,18 @@
                 <div class="card shadow"><div class="card-body p-4 p-md-5">
                     <h2 class="card-title text-center mb-4">What's Your Field?</h2>
                     <div class="progress mb-4" style="height: 10px;"><div class="progress-bar" style="width: 66%;"></div></div>
-
                     <form id="domains-form">
                         <div class="mb-3">
-                            <label for="branch-select" class="form-label">Select Your Stream / Branch*</label>
-                            <select class="form-select" id="branch-select" required><option value="">-- Loading... --</option></select>
+                            <label for="stream-select" class="form-label">Select Your Stream*</label>
+                            <select class="form-select" id="stream-select" required><option value="">-- Loading Streams --</option></select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="branch-select" class="form-label">Select Your Branch*</label>
+                            <select class="form-select" id="branch-select" required disabled><option value="">-- Select a Stream First --</option></select>
                         </div>
                         <div class="mb-4">
                             <label class="form-label">Select Your Domain(s) of Interest*</label>
-                            <div id="domains-container" class="d-flex flex-wrap gap-2"><p class="text-muted">Please select a stream first.</p></div>
+                            <div id="domains-container" class="d-flex flex-wrap gap-2"><p class="text-muted">Please select a branch first.</p></div>
                         </div>
                         <div class="d-grid"><button type="submit" class="btn btn-primary btn-lg">Next: Select Your Skills</button></div>
                     </form>
@@ -29,81 +32,11 @@
             </div>
         </div>
     </div>
+    <!-- We load the new logic file -->
+    <script src="/js/onboarding-logic.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            const branchSelect = document.getElementById('branch-select');
-            const domainsContainer = document.getElementById('domains-container');
-            let skillsData = {};
-
-            // 1. Fetch the data from the JSON file
-            try {
-                // The correct path is relative to the root of the site
-                const response = await fetch('/skills.json'); 
-                if (!response.ok) throw new Error('Network response was not ok');
-                skillsData = await response.json();
-            } catch (error) {
-                console.error('Failed to load skills data:', error);
-                domainsContainer.innerHTML = '<p class="text-danger">Could not load domains. Please refresh.</p>';
-                return;
-            }
-
-            // 2. Populate the branch dropdown
-            branchSelect.innerHTML = '<option value="">-- Select a Stream --</option>'; // Clear loading message
-            for (const streamName in skillsData) {
-                const option = document.createElement('option');
-                option.value = streamName;
-                option.textContent = streamName;
-                branchSelect.appendChild(option);
-            }
-
-            // 3. Listen for changes on the branch dropdown
-            branchSelect.addEventListener('change', () => {
-                const selectedStream = branchSelect.value;
-                domainsContainer.innerHTML = ''; // Clear previous domains
-                if (!selectedStream) {
-                    domainsContainer.innerHTML = '<p class="text-muted">Please select a stream first.</p>';
-                    return;
-                }
-                
-                // This handles both BTech and Placement Preparation streams
-                const branches = skillsData[selectedStream];
-                const firstBranchName = Object.keys(branches)[0]; // e.g., "Computer Science Engineering" or "General"
-                const domains = branches[firstBranchName].domains;
-
-                for (const domainName in domains) {
-                    const card = document.createElement('div');
-                    card.className = 'domain-card p-2 rounded';
-                    card.textContent = domainName;
-                    card.dataset.domainName = domainName; // Store name in data attribute
-                    domainsContainer.appendChild(card);
-                    
-                    card.addEventListener('click', () => {
-                        card.classList.toggle('selected');
-                    });
-                }
-            });
-            
-            // 4. Handle the final form submission
-            document.getElementById('domains-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const selectedBranch = branchSelect.value;
-                const selectedDomainElements = domainsContainer.querySelectorAll('.selected');
-
-                if (!selectedBranch || selectedDomainElements.length === 0) {
-                    alert('Please select your stream and at least one domain.');
-                    return;
-                }
-                
-                const selectedDomains = Array.from(selectedDomainElements).map(el => el.dataset.domainName);
-
-                const onboardingData = JSON.parse(localStorage.getItem('onboardingData')) || {};
-                onboardingData.branch = selectedBranch;
-                onboardingData.selectedDomains = selectedDomains;
-                
-                localStorage.setItem('onboardingData', JSON.stringify(onboardingData));
-                window.location.href = '/onboarding-skills.html';
-            });
-        });
+        // We just call the function from the logic file
+        document.addEventListener('DOMContentLoaded', initializeDomainsPage);
     </script>
 </body>
 </html>
