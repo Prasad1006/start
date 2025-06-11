@@ -3,7 +3,7 @@ import sys
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List
 from datetime import datetime
 from jose import jwt, JWTError
 import requests
@@ -23,7 +23,7 @@ except ImportError as e:
 
 app = FastAPI()
 
-# --- Pydantic Models (Data Validation) ---
+# --- Pydantic Models ---
 class OnboardingData(BaseModel):
     username: str = Field(..., min_length=3, max_length=20, pattern="^[a-zA-Z0-9_]+$")
     headline: str; primaryGoal: str; preferredLanguages: List[str]; branch: str
@@ -33,114 +33,68 @@ class LearningTrack(BaseModel):
     skill: str; skill_slug: str; progress_summary: str; progress_percent: int
 
 class DashboardData(BaseModel):
-    points: int; isTutor: bool; learningTracks: List[LearningTrack]
+    name: str; points: int; isTutor: bool; learningTracks: List[LearningTrack]
 
-# --- Authentication Dependency ---
+# --- Auth Dependency ---
 async def get_current_user(request: Request):
-    if not CLERK_JWT_ISSUER:
-        raise HTTPException(status_code=500, detail="JWT Issuer not configured.")
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Authorization header missing or malformed")
-    token = auth_header.split(" ")[1]
+    if not CLERK_JWT_ISSUER: raise HTTPException(status_code=500, detail="JWT Issuer not configured.")
+    token = request.headers.get('Authorization', '').split(' ')[-1]
     try:
-        jwks_url = f"{CLERK_JWT_ISSUER}/.well-known/jwks.json"
-        jwks = requests.get(jwks_url).json()
+        jwks = requests.get(f"{CLERK_JWT_ISSUER}/.well-known/jwks.json").json()
         unverified_header = jwt.get_unverified_header(token)
         rsa_key = next((key for key in jwks["keys"] if key["kid"] == unverified_header["kid"]), None)
-        if not rsa_key:
-            raise HTTPException(status_code=401, detail="Unable to find appropriate key in JWKS")
+        if not rsa_key: raise HTTPException(status_code=401, detail="Key not found")
         return jwt.decode(token, rsa_key, algorithms=["RS256"], issuer=CLERK_JWT_ISSUER)
-    except JWTError as e:
+    except (JWTError, IndexError) as e:
         raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
 
 # --- API Endpoints ---
-
 @app.post("/api/users/onboard", status_code=status.HTTP_201_CREATED)
 async def onboard_user(data: OnboardingData, current_user: dict = Depends(get_current_user)):
+    if users_collection is None:
+        return JSONResponse(status_code=503, content={"error": "Database service is not available."})
     try:
-        if users_collection is None:
-            raise Exception("Database service is not available.")
-            
         user_id = current_user.get("sub")
-        email = current_user.get("email_addresses", [None])[0]
-        if not user_id or not email:
-            return JSONResponse(status_code=400, content={"error": "User ID or email missing in token."})
-
         if users_collection.find_one({"userId": user_id}):
             return JSONResponse(status_code=200, content={"message": "User already has a profile."})
         if users_collection.find_one({"username": data.username}):
             return JSONResponse(status_code=400, content={"error": "Username is already taken."})
         
         user_document = {
-            "userId": user_id, "username": data.username, "email": email,
+            "userId": user_id, "username": data.username, "email": current_user.get("email_addresses", [None])[0],
             "name": current_user.get("name") or f"{current_user.get('firstName', '')} {current_user.get('lastName', '')}".strip(),
             "headline": data.headline, "profilePictureUrl": current_user.get("imageUrl", ""),
             "points": 100, "badges": ["The Trailblazer"], "primaryGoal": data.primaryGoal,
             "preferredLanguages": data.preferredLanguages, "createdAt": datetime.utcnow(),
-            "learningProfile": {"branch": data.branch, "domains": data.selectedDomains, "skillsToLearn": data.skillsToLearn},
+            "learningProfile": {"branch": data.branch, "stream": data.stream, "domains": data.selectedDomains, "skillsToLearn": data.skillsToLearn},
             "tutorProfile": {"isTutor": len(data.skillsToTeach) > 0, "teachableModules": []}
         }
-        
         users_collection.insert_one(user_document)
-        user_document.pop('_id', None)
-        return {"message": "Onboarding successful!", "user": user_document}
-    
+        return {"message": "Onboarding successful!"}
     except Exception as e:
-        print(f"!!! CATASTROPHIC ERROR in onboard_user: {e}", file=sys.stderr)
+        print(f"!!! ONBOARDING CRASH: {e}", file=sys.stderr)
         return JSONResponse(status_code=500, content={"error": "An internal server error occurred."})
 
 @app.get("/api/users/onboarding-status")
 async def get_onboarding_status(current_user: dict = Depends(get_current_user)):
-    user_id = current_user.get("sub")
-    if users_collection and users_collection.find_one({"userId": user_id}, {"_id": 1}):
+    if users_collection and users_collection.find_one({"userId": current_user.get("sub")}, {"_id": 1}):
         return {"status": "completed"}
     return {"status": "pending"}
 
-
+@app.get("/api/profile")
+async def get_my_profile(current_user: dict = Depends(get_current_user)):
+    user_profile = users_collection.find_one({"userId": current_user.get("sub")})
+    if not user_profile: raise HTTPException(status_code=404, detail="Profile not found.")
+    user_profile["_id"] = str(user_profile["_id"])
+    return user_profile
 
 @app.get("/api/dashboard", response_model=DashboardData)
 async def get_dashboard_data(current_user: dict = Depends(get_current_user)):
-    """
-    Fetches and aggregates all data needed for the main user dashboard.
-    """
-    # Use the unique user ID from the token for database queries
-    user_id = current_user.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=403, detail="User ID not found in token")
-
-    try:
-        if users_collection is None:
-            raise Exception("Database service is unavailable.")
-
-        user_profile = users_collection.find_one({"userId": user_id})
-        if not user_profile:
-            # This is a critical check. If the user exists in Clerk but not our DB,
-            # something is wrong. We can even force a re-onboarding.
-            raise HTTPException(status_code=404, detail="User profile not found in our database.")
-        
-        points = user_profile.get("points", 0)
-        is_tutor = user_profile.get("tutorProfile", {}).get("isTutor", False)
-        
-        # In V1, this will be empty as we haven't built roadmaps yet.
-        # This is placeholder logic for the future.
-        learning_tracks = []
-        # Example of future logic:
-        # roadmaps_cursor = roadmaps_collection.find({"userId": user_id})
-        # for roadmap in roadmaps_cursor:
-        #     learning_tracks.append(...)
-        
-        return {"points": points, "isTutor": is_tutor, "learningTracks": learning_tracks}
-    except Exception as e:
-        print(f"!!! ERROR fetching dashboard data: {e}", file=sys.stderr)
-        raise HTTPException(status_code=500, detail="Could not fetch dashboard data.")
-    
-
-@app.get("/api/profile")
-async def get_my_profile(current_user: dict = Depends(get_current_user)):
-    user_id = current_user.get("sub")
-    user_profile = users_collection.find_one({"userId": user_id})
-    if not user_profile:
-        raise HTTPException(status_code=404, detail="Profile not found.")
-    user_profile["_id"] = str(user_profile["_id"]) # Convert ObjectId for JSON
-    return user_profile
+    user_profile = users_collection.find_one({"userId": current_user.get("sub")})
+    if not user_profile: raise HTTPException(status_code=404, detail="User profile not found.")
+    return {
+        "name": user_profile.get("name", ""),
+        "points": user_profile.get("points", 0),
+        "isTutor": user_profile.get("tutorProfile", {}).get("isTutor", False),
+        "learningTracks": [] # Placeholder for now
+    }

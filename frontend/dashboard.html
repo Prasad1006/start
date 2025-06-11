@@ -8,30 +8,22 @@
     <template>
         <div class="container py-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 id="welcome-message" class="fw-light">My Dashboard</h1>
+                <h1 id="welcome-message" class="fw-light">Loading...</h1>
                 <div class="d-flex align-items-center">
                     <span class="fw-bold me-2 text-muted">My Points:</span>
                     <span id="user-points" class="badge bg-success fs-5">...</span>
                 </div>
             </div>
-
-            <h2 class="h4">My Learning</h2>
-            <div id="learning-tracks-container" class="row g-4">
-                <div class="col-12 text-center p-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </div>
+            <div id="dashboard-content">
+                <div class="text-center p-5"><div class="spinner-border text-primary"></div></div>
             </div>
         </div>
     </template>
-
     <script src="/js/layout.js"></script>
-    <script src="/js/dashboard.js"></script> 
+    <script src="/js/dashboard.js"></script>
     <script>
-        // This function is the hook that navigation.js will trigger
         function onClerkReady() {
-             if (window.Clerk) {
+             if (window.Clerk && window.Clerk.user) {
                 initializeDashboard(window.Clerk);
             }
         }
