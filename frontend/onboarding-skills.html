@@ -38,67 +38,73 @@
         </div>
     </div>
 
-    <script>
-        // Load Clerk script to get the session token
-        const CLERK_PUBLISHABLE_KEY = "pk_test_dG91Y2hpbmctbW9zcXVpdG8tOTAuY2xlcmsuYWNjb3VudHMuZGV2JA"; // Replace with your actual key
-    </script>
-    <script async src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js" onload="window.Clerk.load()"></script>
+    <!-- 
+      *** THE SCRIPT LOADING FIX ***
+      We load Clerk first and use 'onload' to trigger our form submission logic.
+    -->
+    <script async src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+        data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk"
+        onload="initializeOnboardingForm()"
+    ></script>
     
     <script>
-        document.getElementById('final-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const submitBtn = document.getElementById('submit-btn');
-            const errorMessage = document.getElementById('error-message');
-            submitBtn.disabled = true;
-            submitBtn.innerText = 'Saving...';
-            errorMessage.style.display = 'none';
+        function initializeOnboardingForm() {
+            // This function is called by 'onload', ensuring Clerk is ready.
+            const form = document.getElementById('final-form');
 
-            try {
-                // Wait for Clerk to be ready
-                await window.Clerk.load();
+            // We make the event listener 'async' to use 'await' inside it.
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const submitBtn = document.getElementById('submit-btn');
+                const errorMessage = document.getElementById('error-message');
+                submitBtn.disabled = true;
+                submitBtn.innerText = 'Saving...';
+                errorMessage.style.display = 'none';
 
-                if (!window.Clerk.user) {
-                    throw new Error("User not signed in. Please log in again.");
+                try {
+                    const Clerk = window.Clerk;
+                    
+                    // We still 'await Clerk.load()' to ensure components are ready.
+                    await Clerk.load();
+
+                    if (!Clerk.user) {
+                        throw new Error("User not signed in. Please log in again.");
+                    }
+
+                    const onboardingData = JSON.parse(localStorage.getItem('onboardingData')) || {};
+                    onboardingData.institutionName = document.getElementById('institutionName').value;
+                    onboardingData.location = document.getElementById('location').value;
+
+                    // Get the session token. This will now succeed.
+                    const token = await Clerk.session.getToken();
+
+                    // Make the API call to our backend.
+                    const response = await fetch('/api/users/onboard', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + token
+                        },
+                        body: JSON.stringify(onboardingData)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Something went wrong.');
+                    }
+
+                    localStorage.removeItem('onboardingData');
+                    window.location.href = '/dashboard.html';
+
+                } catch (error) {
+                    console.error('Onboarding failed:', error);
+                    errorMessage.innerText = error.message;
+                    errorMessage.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = 'Complete Profile & Enter';
                 }
-
-                // Retrieve all data from localStorage
-                const onboardingData = JSON.parse(localStorage.getItem('onboardingData')) || {};
-
-                // Add the final pieces of data
-                onboardingData.institutionName = document.getElementById('institutionName').value;
-                onboardingData.location = document.getElementById('location').value;
-                
-
-                // Get the session token from Clerk. This proves to our backend the user is who they say they are.
-                const token = await window.Clerk.session.getToken();
-
-                // Make the API call to our backend
-                const response = await fetch('/api/users/onboard', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + token // Send the token
-                    },
-                    body: JSON.stringify(onboardingData)
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Something went wrong.');
-                }
-
-                // If successful, clear the temporary data and redirect to the dashboard
-                localStorage.removeItem('onboardingData');
-                window.location.href = '/dashboard.html';
-
-            } catch (error) {
-                console.error('Onboarding failed:', error);
-                errorMessage.innerText = error.message;
-                errorMessage.style.display = 'block';
-                submitBtn.disabled = false;
-                submitBtn.innerText = 'Complete Profile & Enter';
-            }
-        });
+            });
+        }
     </script>
 </body>
 </html>
