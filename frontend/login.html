@@ -7,24 +7,23 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background-color: #f8f9fa; }
-        .clerk-container { width: 100%; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; padding: 2rem; background-color: white; }
+        .clerk-container { width: 100%; max-width: 400px; }
     </style>
 </head>
 <body>
-    <div class="clerk-container">
-        <div id="sign-in"></div>
-    </div>
+    <div id="sign-in" class="clerk-container"></div>
 
+    <!-- This is the clean script tag with no comments inside -->
     <script async src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
-        data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk" <!-- REPLACE WITH YOUR KEY -->
+        data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk"
         onload="startClerk()"
     ></script>
 
     <script>
         function startClerk() {
             const Clerk = window.Clerk;
-            const signInComponent = document.getElementById('sign-in');
-            Clerk.mountSignIn(signInComponent);
+            const signInElement = document.getElementById('sign-in');
+            Clerk.mountSignIn(signInElement);
         }
     </script>
 </body>
