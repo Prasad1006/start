@@ -2,41 +2,89 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Onboarding: Final Details</title>
+    <title>Onboarding (3/3): Skills</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 </head>
 <body class="bg-light">
     <div class="container">
         <div class="row justify-content-center" style="padding-top: 5vh;">
-            <div class="col-md-8 col-lg-6">
+            <div class="col-md-8 col-lg-7">
                 <div class="card shadow"><div class="card-body p-4 p-md-5">
-                    <h2 class="card-title text-center mb-4">A little more about you...</h2>
+                    <h2 class="card-title text-center mb-4">Define Your Skillset</h2>
+                    <p class="text-center text-muted">What do you want to learn? What can you teach?</p>
                     <div class="progress mb-4" style="height: 10px;"><div class="progress-bar" style="width: 100%;"></div></div>
-                    <form id="final-form">
-                        <div class="mb-3">
-                            <label for="institutionName" class="form-label">College / Institution Name (Optional)</label>
-                            <input type="text" class="form-control" id="institutionName">
+                    
+                    <form id="skills-form">
+                        <div class="accordion" id="skills-accordion">
+                            <!-- Accordions will be dynamically inserted here -->
                         </div>
-                         <div class="mb-3">
-                            <label for="location" class="form-label">City / Location (Optional)</label>
-                            <input type="text" class="form-control" id="location">
-                        </div>
-                        <div id="error-message" class="alert alert-danger" style="display: none;"></div>
-                        <div class="d-grid"><button type="submit" id="submit-btn" class="btn btn-success btn-lg">Complete Profile & Enter</button></div>
+                        <div id="error-message" class="alert alert-danger mt-3" style="display: none;"></div>
+                        <div class="d-grid mt-4"><button type="submit" id="submit-btn" class="btn btn-success btn-lg">Complete Profile & Enter</button></div>
                     </form>
                 </div></div>
             </div>
         </div>
     </div>
-    
+
     <script async src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
         data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk"
         onload="initializeOnboardingForm()"
     ></script>
     
     <script>
-        function initializeOnboardingForm() {
-            const form = document.getElementById('final-form');
+        async function initializeOnboardingForm() {
+            const accordionContainer = document.getElementById('skills-accordion');
+            const onboardingData = JSON.parse(localStorage.getItem('onboardingData'));
+
+            if (!onboardingData || !onboardingData.selectedDomains) {
+                accordionContainer.innerHTML = '<p class="text-danger">Error: Could not find selected domains. Please go back.</p>';
+                return;
+            }
+
+            // 1. Fetch the data again to get skill details
+            const response = await fetch('/skills-data.json');
+            const skillsData = await response.json();
+            const branchData = skillsData.BTech[onboardingData.branch].domains;
+            
+            // 2. Build the UI with accordions for each domain
+            onboardingData.selectedDomains.forEach((domainName, index) => {
+                const skills = branchData[domainName].skills;
+                const accordionId = `accordion-${index}`;
+                
+                let skillsHtml = '';
+                skills.forEach(skill => {
+                    skillsHtml += `
+                        <div class="row border-bottom py-2">
+                            <div class="col-5">${skill.name}</div>
+                            <div class="col-3 text-center"><input class="form-check-input" type="checkbox" name="learn" value="${skill.name}"></div>
+                            <div class="col-4 text-center"><input class="form-check-input" type="checkbox" name="teach" value="${skill.name}"></div>
+                        </div>`;
+                });
+
+                const accordionItem = `
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading-${accordionId}">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${accordionId}" aria-expanded="true" aria-controls="collapse-${accordionId}">
+                                Skills in: ${domainName}
+                            </button>
+                        </h2>
+                        <div id="collapse-${accordionId}" class="accordion-collapse collapse show" aria-labelledby="heading-${accordionId}" data-bs-parent="#skills-accordion">
+                            <div class="accordion-body">
+                                <div class="row fw-bold text-muted">
+                                    <div class="col-5">Skill</div>
+                                    <div class="col-3 text-center"><i class="bi bi-book"></i> Learn</div>
+                                    <div class="col-4 text-center"><i class="bi bi-easel"></i> Teach</div>
+                                </div>
+                                ${skillsHtml}
+                            </div>
+                        </div>
+                    </div>`;
+                accordionContainer.innerHTML += accordionItem;
+            });
+            
+            // 3. Attach the final submission logic
+            const form = document.getElementById('skills-form');
             form.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const submitBtn = document.getElementById('submit-btn');
@@ -44,16 +92,19 @@
                 submitBtn.disabled = true;
                 submitBtn.innerText = 'Saving...';
 
+                // Collect selected skills
+                const skillsToLearn = Array.from(document.querySelectorAll('input[name="learn"]:checked')).map(el => el.value);
+                const skillsToTeach = Array.from(document.querySelectorAll('input[name="teach"]:checked')).map(el => el.value);
+
+                onboardingData.skillsToLearn = skillsToLearn;
+                onboardingData.skillsToTeach = skillsToTeach;
+
+                // API submission logic
                 try {
                     const Clerk = window.Clerk;
                     await Clerk.load();
-
-                    if (!Clerk.user) { throw new Error("User not signed in."); }
-
-                    const onboardingData = JSON.parse(localStorage.getItem('onboardingData')) || {};
-                    onboardingData.institutionName = document.getElementById('institutionName').value;
-                    onboardingData.location = document.getElementById('location').value;
-
+                    if (!Clerk.user) throw new Error("User not signed in.");
+                    
                     const token = await Clerk.session.getToken();
                     const response = await fetch('/api/users/onboard', {
                         method: 'POST',
@@ -63,7 +114,7 @@
 
                     if (!response.ok) {
                         const errorData = await response.json();
-                        throw new Error(errorData.detail || 'Something went wrong.');
+                        throw new Error(errorData.detail || 'Onboarding failed.');
                     }
 
                     localStorage.removeItem('onboardingData');
@@ -78,5 +129,6 @@
             });
         }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

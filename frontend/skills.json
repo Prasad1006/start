@@ -1,0 +1,54 @@
+{
+  "BTech": {
+    "Computer Science Engineering": {
+      "domains": {
+        "Web Development": {
+          "skills": [
+            { "name": "HTML/CSS/JavaScript", "level": "Beginner" },
+            { "name": "React.js", "level": "Intermediate" },
+            { "name": "Backend Development (Node.js/Django)", "level": "Intermediate" }
+          ]
+        },
+        "Artificial Intelligence": {
+          "skills": [
+            { "name": "Python for AI", "level": "Beginner" },
+            { "name": "Machine Learning", "level": "Intermediate" },
+            { "name": "Deep Learning", "level": "Advanced" }
+          ]
+        },
+        "Cybersecurity": {
+          "skills": [
+            { "name": "Ethical Hacking", "level": "Intermediate" },
+            { "name": "Network Security", "level": "Intermediate" }
+          ]
+        }
+      }
+    },
+    "Electronics and Communication Engineering": {
+      "domains": {
+        "VLSI Design": {
+          "skills": [
+            { "name": "Verilog/VHDL", "level": "Intermediate" },
+            { "name": "Digital Electronics", "level": "Beginner" }
+          ]
+        },
+        "Embedded Systems": {
+          "skills": [
+            { "name": "Microcontrollers (8051, ARM)", "level": "Intermediate" },
+            { "name": "Embedded C", "level": "Intermediate" }
+          ]
+        }
+      }
+    },
+    "Mechanical Engineering": {
+      "domains": {
+        "Design and Manufacturing": {
+          "skills": [
+            { "name": "AutoCAD/SolidWorks", "level": "Beginner" },
+            { "name": "CAM/CNC Programming", "level": "Intermediate" }
+          ]
+        }
+      }
+    }
+  }
+}
