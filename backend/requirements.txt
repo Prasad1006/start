@@ -1,4 +1,7 @@
-# requirements.txt
-# Vercel will use this file to install the necessary packages for our backend.
 fastapi
 uvicorn
+python-dotenv
+pymongo
+requests
+python-jose[cryptography]
+passlib[bcrypt]
