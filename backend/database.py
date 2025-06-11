@@ -1,38 +1,60 @@
-# backend/database.py
+# Add this endpoint to your existing main.py file
 
-import os
-from pymongo import MongoClient
-from dotenv import load_dotenv
+class LearningTrack(BaseModel):
+    skill: str
+    skill_slug: str
+    progress_summary: str
+    progress_percent: int
 
-# Load environment variables from the .env file for local development
-load_dotenv()
+class DashboardData(BaseModel):
+    points: int
+    isTutor: bool
+    learningTracks: List[LearningTrack]
 
-MONGO_URI = os.getenv("MONGODB_URI")
+@app.get("/api/dashboard", response_model=DashboardData)
+async def get_dashboard_data(current_user: dict = Depends(get_current_user)):
+    """
+    Fetches and aggregates all data needed for the main user dashboard.
+    """
+    username = current_user.get("username")
+    if not username:
+        raise HTTPException(status_code=403, detail="Username not found in token")
 
-if not MONGO_URI:
-    raise Exception("FATAL ERROR: MONGODB_URI environment variable is not set.")
+    try:
+        user_profile = users_collection.find_one({"username": username})
+        if not user_profile:
+            # This should theoretically never be hit if the gatekeeper is working,
+            # but it's good practice to have this check.
+            raise HTTPException(status_code=404, detail="User profile not found.")
 
-try:
-    # This is a best practice: create a single client instance and reuse it
-    client = MongoClient(MONGO_URI)
-    
-    # Ping the server to check the connection
-    client.admin.command('ping')
-    print("✅ MongoDB connection successful.")
-    
-    # The 'db' object will be the interface to our database.
-    db = client.learn_n_teach_db
-    
-    # Define all collections we will use in one place
-    users_collection = db.users
-    sessions_collection = db.sessions
-    quizzes_collection = db.quizzes
-    # ... and so on
+        # 1. Get points and tutor status
+        points = user_profile.get("points", 0)
+        is_tutor = user_profile.get("tutorProfile", {}).get("isTutor", False)
 
-except Exception as e:
-    print(f"❌ Error connecting to MongoDB: {e}")
-    # Set to None so the app will fail loudly if the DB is down
-    client = None
-    users_collection = None
-    sessions_collection = None
-    quizzes_collection = None
+        # 2. Fetch and process learning roadmaps into learning tracks
+        learning_tracks = []
+        roadmaps_cursor = roadmaps_collection.find({"username": username})
+        for roadmap in roadmaps_cursor:
+            total_weeks = len(roadmap.get("weeklyPlan", []))
+            completed_weeks = sum(1 for week in roadmap.get("weeklyPlan", []) if week.get("status") == "COMPLETED")
+            
+            progress_percent = (completed_weeks / total_weeks * 100) if total_weeks > 0 else 0
+            
+            learning_tracks.append({
+                "skill": roadmap.get("skill"),
+                "skill_slug": roadmap.get("skill").lower().replace(" ", "-"), # e.g., "Python for Data Science" -> "python-for-data-science"
+                "progress_summary": f"{completed_weeks}/{total_weeks} Modules Complete",
+                "progress_percent": int(progress_percent)
+            })
+
+        # Assemble the final data object
+        dashboard_data = {
+            "points": points,
+            "isTutor": is_tutor,
+            "learningTracks": learning_tracks
+        }
+        return dashboard_data
+
+    except Exception as e:
+        print(f"!!! ERROR fetching dashboard data: {e}")
+        raise HTTPException(status_code=500, detail="Could not fetch dashboard data.")
