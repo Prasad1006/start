@@ -15,7 +15,7 @@
                     <div class="progress mb-4" style="height: 10px;"><div class="progress-bar" style="width: 100%;"></div></div>
                     <form id="skills-form">
                         <div class="accordion" id="skills-accordion">
-                            <!-- JS will build the content here -->
+                            <div class="text-center p-5"><div class="spinner-border text-primary" role="status"></div></div>
                         </div>
                         <div id="error-message" class="alert alert-danger mt-3" style="display: none;"></div>
                         <div class="d-grid mt-4"><button type="submit" id="submit-btn" class="btn btn-success btn-lg">Complete Profile & Enter</button></div>
@@ -25,17 +25,22 @@
         </div>
     </div>
 
-    <!-- ** THE FIX IS HERE ** -->
-    <!-- Step 1: Load our own logic script first. This ensures the function is defined. -->
+    <!-- SCRIPT LOADING SECTION -->
+    <!-- We load all scripts here, but DO NOT call any functions yet. -->
     <script src="/js/onboarding-logic.js"></script>
-
-    <!-- Step 2: Load the Clerk script. Its onload event can now safely find our function. -->
     <script async src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
-        data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk"
-        onload="initializeSkillsPage()"
-    ></script>
-
-    <!-- Step 3: Load Bootstrap's JS last for any component interactions. -->
+        data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk">
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- ** THIS IS THE NEW, ROBUST INITIALIZATION SCRIPT ** -->
+    <script>
+        // This script runs after all the above scripts have been downloaded.
+        document.addEventListener('DOMContentLoaded', () => {
+            // Now we can be 100% sure that the initializeSkillsPage function exists.
+            // We call it here manually.
+            initializeSkillsPage();
+        });
+    </script>
 </body>
 </html>
