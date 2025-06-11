@@ -19,18 +19,18 @@
     ></script>
 
     <script>
-        // Make the function 'async' so we can use the 'await' keyword inside it.
         async function startClerk() {
             const Clerk = window.Clerk;
             const signUpElement = document.getElementById('sign-up');
 
             try {
-                // *** THIS IS THE FINAL FIX ***
-                // We must wait for Clerk to be fully initialized before mounting components.
                 await Clerk.load();
-
-                // Now that Clerk is ready, this command will succeed.
-                Clerk.mountSignUp(signUpElement);
+                
+                // *** THIS IS THE FIX ***
+                // We are now explicitly telling Clerk where to go after a successful signup.
+                Clerk.mountSignUp(signUpElement, {
+                    afterSignUpUrl: '/onboarding-profile.html'
+                });
 
             } catch (error) {
                 console.error("Clerk mounting error:", error);
