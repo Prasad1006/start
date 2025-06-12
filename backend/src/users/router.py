@@ -6,9 +6,9 @@ from pydantic import BaseModel
 
 # ** THIS IS THE CRITICAL FIX **
 # '..' goes up one directory from 'users' to 'src', then into 'core'.
-from ..core.security import get_current_user
+from core.security import get_current_user
 # '.' means import from a file in the same 'users' directory.
-from . import service as user_service 
+from users import service as user_service 
 
 # Create a new router for this module
 router = APIRouter(
