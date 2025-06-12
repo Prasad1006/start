@@ -1,12 +1,7 @@
 async function enforceOnboarding() {
     const Clerk = window.Clerk;
     if (!Clerk || !Clerk.user) return;
-
-    const allowedOnboardingPages = [
-        '/onboarding-profile.html',
-        '/onboarding-domains.html',
-        '/onboarding-skills.html'
-    ];
+    const allowedOnboardingPages = ['/onboarding-profile.html', '/onboarding-domains.html', '/onboarding-skills.html'];
     const currentPage = window.location.pathname;
 
     try {
@@ -14,7 +9,6 @@ async function enforceOnboarding() {
         const response = await fetch('/api/users/onboarding-status', {
             headers: { 'Authorization': 'Bearer ' + token }
         });
-        
         if (!response.ok) throw new Error("Could not check onboarding status.");
         const data = await response.json();
 

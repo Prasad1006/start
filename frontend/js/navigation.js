@@ -1,7 +1,6 @@
 function initializeClerkNavigation() {
     const Clerk = window.Clerk;
     if (!Clerk) return;
-
     const userSection = document.getElementById('user-section');
     const authButtons = document.getElementById('auth-buttons');
 
@@ -22,15 +21,13 @@ function initializeClerkNavigation() {
                             <li><hr class="dropdown-divider"></li>
                             <li><button id="sign-out-button" class="dropdown-item">Log Out</button></li>
                         </ul>
-                    </div>
-                `;
+                    </div>`;
                 document.getElementById('sign-out-button').addEventListener('click', () => Clerk.signOut({ redirectUrl: '/login.html' }));
             }
         } else {
             if (authButtons) authButtons.style.display = 'block';
             if (userSection) userSection.style.display = 'none';
         }
-        
         if (typeof onClerkReady === 'function') {
             onClerkReady();
         }

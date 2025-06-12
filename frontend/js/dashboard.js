@@ -1,14 +1,12 @@
 async function initializeDashboard(clerk) {
     try {
         const token = await clerk.session.getToken();
-        const response = await fetch('/api/dashboard', {
-            headers: { 'Authorization': 'Bearer ' + token }
-        });
+        const response = await fetch('/api/dashboard', { headers: { 'Authorization': 'Bearer ' + token } });
         if (!response.ok) throw new Error('Failed to fetch dashboard data.');
         const data = await response.json();
         renderDashboard(data, token);
     } catch (error) {
-        document.getElementById('dashboard-content').innerHTML = `<div class="alert alert-danger">Could not load your dashboard. ${error.message}</div>`;
+        document.getElementById('dashboard-content').innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
     }
 }
 
@@ -38,7 +36,7 @@ function renderDashboard(data, token) {
         });
         tracksContainer.innerHTML = tracksHtml;
     } else {
-        tracksContainer.innerHTML = `<div class="text-center p-4 border rounded bg-light"><p>You have no skills selected to learn.</p></div>`;
+        tracksContainer.innerHTML = `<div class="text-center p-4 border rounded bg-light"><p>No skills selected.</p></div>`;
     }
     addGenerateButtonListeners(token);
 }
@@ -57,23 +55,19 @@ function addGenerateButtonListeners(token) {
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                     body: JSON.stringify({ skill: skill })
                 });
-
-                if (!response.ok) { // Check for 4xx/5xx responses
+                if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.detail || "Server responded with an error.");
+                    throw new Error(errorData.detail || "Server error.");
                 }
-
                 btn.classList.remove('btn-outline-primary');
                 btn.classList.add('btn-success');
-                btn.innerHTML = `Queued! Refreshing...`;
-                
-                setTimeout(() => window.location.reload(), 2000);
+                btn.innerHTML = `Queued! Refresh in a minute...`;
             } catch (error) {
                 btn.classList.remove('btn-outline-primary');
                 btn.classList.add('btn-danger');
                 btn.innerHTML = `Error!`;
                 btn.disabled = false;
-                console.error("Failed to generate roadmap:", error);
+                console.error("Failed to request roadmap:", error);
             }
         });
     });
