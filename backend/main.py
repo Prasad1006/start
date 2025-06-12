@@ -1,106 +1,70 @@
-# backend/main.py (FINAL DIAGNOSTIC VERSION - SINGLE FILE)
+# backend/main.py (REVERTED TO STABLE VERSION)
 import os
-import sys
-from fastapi import FastAPI, Response, Request, HTTPException
-from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
+from fastapi import FastAPI, Depends, HTTPException, status
+from typing import List
+from datetime import datetime
 from dotenv import load_dotenv
-import requests
-from jose import jwt, JWTError
+from pydantic import BaseModel, Field
+from urllib.parse import quote
 
-# --- 1. Load Environment and Set up Logging ---
+# --- Module Imports ---
+from . import workers, learning, auth
+from .database import users_collection, roadmaps_collection
+
 load_dotenv()
 app = FastAPI()
 
-print("--- [SERVER START] Application module is being loaded. ---", file=sys.stderr)
+# --- Include Routers ---
+app.include_router(workers.router)
+app.include_router(learning.router)
 
-# --- 2. Centralized Database Connection Logic ---
-MONGO_URI = os.getenv("MONGODB_URI")
-users_collection = None
+# --- Pydantic Models ---
+class OnboardingData(BaseModel):
+    username: str = Field(..., min_length=3, max_length=20, pattern="^[a-zA-Z0-9_]+$")
+    headline: str; primaryGoal: str; preferredLanguages: List[str]; stream: str; branch: str
+    selectedDomains: List[str]; skillsToLearn: List[str] = []; skillsToTeach: List[str] = []
 
-if not MONGO_URI:
-    print("!!! FATAL STARTUP ERROR: MONGODB_URI environment variable is NOT SET.", file=sys.stderr)
-else:
-    try:
-        print("--- [DB] Attempting to create MongoClient... ---", file=sys.stderr)
-        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-        client.admin.command('ismaster')
-        db = client.learn_n_teach_db
-        users_collection = db.users
-        print("✅ [DB] MongoClient created and users_collection is assigned.", file=sys.stderr)
-    except ConnectionFailure as e:
-        print(f"!!! FATAL DB CONNECTION ERROR: Could not connect to MongoDB: {e}", file=sys.stderr)
-    except Exception as e:
-        print(f"!!! FATAL UNEXPECTED DB ERROR during startup: {e}", file=sys.stderr)
+class LearningTrack(BaseModel):
+    skill: str; skill_slug: str; progress_summary: str; progress_percent: int; generated: bool
 
+class DashboardData(BaseModel):
+    name: str; points: int; isTutor: bool; learningTracks: List[LearningTrack]
 
-# --- 3. Self-Contained Authentication Logic ---
-CLERK_JWT_ISSUER = os.getenv("CLERK_JWT_ISSUER")
+# --- API Endpoints ---
+@app.post("/api/users/onboard", status_code=status.HTTP_201_CREATED)
+async def onboard_user(data: OnboardingData, current_user: dict = Depends(auth.get_current_user)):
+    if users_collection is None: raise HTTPException(status_code=503, detail="Database service unavailable.")
+    user_id = current_user.get("sub")
+    if users_collection.find_one({"userId": user_id}): return {"message": "User already has a profile."}
+    if users_collection.find_one({"username": data.username}): raise HTTPException(status_code=400, detail="Username is already taken.")
+    doc = { "userId": user_id, "username": data.username, "email": current_user.get("email_addresses", [None])[0], "name": current_user.get("name") or f"{current_user.get('firstName', '')} {current_user.get('lastName', '')}".strip(), "headline": data.headline, "profilePictureUrl": current_user.get("imageUrl", ""), "points": 100, "badges": ["The Trailblazer"], "primaryGoal": data.primaryGoal, "preferredLanguages": data.preferredLanguages, "createdAt": datetime.utcnow(), "learningProfile": {"stream": data.stream, "branch": data.branch, "domains": data.selectedDomains, "skillsToLearn": data.skillsToLearn}, "tutorProfile": {"isTutor": len(data.skillsToTeach) > 0, "teachableModules": []} }
+    users_collection.insert_one(doc)
+    return {"message": "Onboarding successful!"}
 
-async def get_current_user(request: Request) -> dict:
-    if not CLERK_JWT_ISSUER:
-        raise HTTPException(status_code=500, detail="Auth issuer not configured.")
-    
-    token = request.headers.get('Authorization', '').split(' ')[-1]
-    
-    try:
-        jwks_url = f"{CLERK_JWT_ISSUER}/.well-known/jwks.json"
-        jwks = requests.get(jwks_url).json()
-        unverified_header = jwt.get_unverified_header(token)
-        rsa_key = next((key for key in jwks["keys"] if key["kid"] == unverified_header["kid"]), None)
-        if not rsa_key:
-            raise HTTPException(status_code=401, detail="Key not found")
-        
-        return jwt.decode(token, rsa_key, algorithms=["RS256"], issuer=CLERK_JWT_ISSUER)
-    except (JWTError, IndexError) as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
-
-
-# --- 4. THE FAILING ENDPOINT with Exhaustive Logging ---
 @app.get("/api/users/onboarding-status")
-async def get_onboarding_status(request: Request):
-    print("--- [HANDLER START] Entering /api/users/onboarding-status ---", file=sys.stderr)
-    
-    try:
-        # Step A: Get the current user
-        current_user = await get_current_user(request)
-        user_id = current_user.get("sub")
-        print(f"[HANDLER] Successfully decoded token for user_id: {user_id}", file=sys.stderr)
+async def get_onboarding_status(current_user: dict = Depends(auth.get_current_user)):
+    if users_collection is None:
+        raise HTTPException(status_code=503, detail="Database service temporarily unavailable.")
+    if users_collection.find_one({"userId": current_user.get("sub")}, {"_id": 1}):
+        return {"status": "completed"}
+    return {"status": "pending"}
 
-        if not user_id:
-             print("!!! [HANDLER ERROR] 'sub' claim not found in token.", file=sys.stderr)
-             raise HTTPException(status_code=400, detail="'sub' claim missing from token.")
+@app.get("/api/dashboard", response_model=DashboardData)
+async def get_dashboard_data(current_user: dict = Depends(auth.get_current_user)):
+    if users_collection is None or roadmaps_collection is None:
+        raise HTTPException(status_code=503, detail="Database service temporarily unavailable.")
+    user_id = current_user.get("sub")
+    profile = users_collection.find_one({"userId": user_id})
+    if not profile: raise HTTPException(status_code=404, detail="User profile not found.")
+    skills = profile.get("learningProfile", {}).get("skillsToLearn", [])
+    gen_maps = {r["skill"]: r["skill_slug"] for r in roadmaps_collection.find({"userId": user_id}, {"skill": 1, "skill_slug": 1})}
+    tracks = [{"skill": s, "skill_slug": gen_maps.get(s, quote(s.lower().replace(" ", "-"), safe='')), "progress_summary": "Ready to Start" if s in gen_maps else "AI Roadmap Not Generated", "progress_percent": 0, "generated": s in gen_maps} for s in skills]
+    return {"name": profile.get("name", ""), "points": profile.get("points", 0), "isTutor": profile.get("tutorProfile", {}).get("isTutor", False), "learningTracks": tracks}
 
-        # Step B: Check the database collection object
-        if users_collection is None:
-            print("!!! [HANDLER ERROR] users_collection object is None. DB connection likely failed on startup.", file=sys.stderr)
-            raise HTTPException(status_code=503, detail="Database service not available.")
-        
-        print("[HANDLER] users_collection object is valid. Proceeding to query.", file=sys.stderr)
-
-        # Step C: Perform the database query
-        profile_document = users_collection.find_one({"userId": user_id}, {"_id": 1})
-
-        print(f"[HANDLER] Database find_one query completed. Result: {profile_document}", file=sys.stderr)
-
-        if profile_document:
-            print("--- [HANDLER END] Profile found. Returning 'completed'. ---", file=sys.stderr)
-            return {"status": "completed"}
-        else:
-            print("--- [HANDLER END] No profile found. Returning 'pending'. ---", file=sys.stderr)
-            return {"status": "pending"}
-
-    except HTTPException as e:
-        # If we raised an HTTPException ourselves, re-raise it
-        print(f"!!! [HANDLER HTTP EXCEPTION] {e.detail}", file=sys.stderr)
-        raise e
-    except Exception as e:
-        # For any other unexpected crash
-        print(f"!!! [HANDLER CRITICAL UNEXPECTED ERROR]: {e}", file=sys.stderr)
-        raise HTTPException(status_code=500, detail="A critical unexpected error occurred.")
-
-# --- 5. A Simple Test Endpoint ---
-# This endpoint ignores all other logic to see if the server itself can run.
-@app.get("/api/health")
-def health_check():
-    return {"status": "ok"}
+@app.get("/api/profile")
+async def get_my_profile(current_user: dict = Depends(auth.get_current_user)):
+    if users_collection is None: raise HTTPException(status_code=503, detail="Database service unavailable.")
+    profile = users_collection.find_one({"userId": current_user.get("sub")})
+    if not profile: raise HTTPException(status_code=404, detail="Profile not found.")
+    profile["_id"] = str(profile["_id"])
+    return profile
