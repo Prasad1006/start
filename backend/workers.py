@@ -8,6 +8,8 @@ from datetime import datetime
 from urllib.parse import quote
 from .database import roadmaps_collection
 
+print(f"In {__file__}, WORKER_SECRET_KEY is set: {os.getenv('WORKER_SECRET_KEY') is not None}", file=sys.stderr)
+
 router = APIRouter()
 WORKER_SECRET_KEY = os.getenv("WORKER_SECRET_KEY")
 
