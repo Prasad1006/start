@@ -7,4 +7,3 @@ requests
 python-jose[cryptography]
 passlib[bcrypt]
 google-generativeai
-qstash
