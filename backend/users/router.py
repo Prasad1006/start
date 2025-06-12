@@ -5,8 +5,8 @@ from typing import List
 from pydantic import BaseModel
 
 
-from backend.src.core.security import get_current_user
-from backend.src.users import service as user_service
+from core.security import get_current_user
+from users import service as user_service
 
 # Create a new router for this module
 router = APIRouter(

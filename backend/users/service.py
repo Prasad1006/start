@@ -1,7 +1,7 @@
 # backend/src/users/service.py
 
 # The import is now relative to the 'backend' folder.
-from backend.src.core.db import users_collection
+from core.db import users_collection
 from datetime import datetime
 
 
