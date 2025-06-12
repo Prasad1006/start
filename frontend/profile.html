@@ -6,45 +6,106 @@
 </head>
 <body>
     <template>
-        <div class="container py-4" id="profile-content-wrapper">
-
-            <!-- Loading Spinner (shown by default) -->
-            <div class="text-center p-5" id="profile-loader">
-                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-2 text-muted">Loading your profile...</p>
+        <div class="container py-5" id="profile-content-wrapper">
+            <!-- Loading Spinner -->
+            <div id="profile-loader" class="text-center p-5">
+                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
             </div>
 
-            <!-- Profile Content (hidden by default, shown by JS after data loads) -->
-            <div class="row" id="profile-details" style="display: none;">
-                <div class="col-md-4 mb-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <img id="profile-pic" src="https://via.placeholder.com/150" class="rounded-circle mb-3" width="150" height="150" alt="Profile Picture">
-                            <h4 id="profile-name" class="card-title">...</h4>
-                            <p id="profile-headline" class="text-muted">...</p>
+            <!-- Profile Content (hidden by default) -->
+            <div id="profile-details" style="display: none;">
+                <div class="row">
+                    <!-- Left Column: Avatar and Core Info -->
+                    <div class="col-lg-4 mb-4">
+                        <div class="card shadow-sm text-center p-4">
+                            <img id="profile-pic" src="https://via.placeholder.com/150" class="rounded-circle mx-auto mb-3" width="150" height="150" alt="Profile Picture">
+                            <h4 id="profile-name" class="mb-0">...</h4>
                             <p class="text-muted">@<span id="profile-username">...</span></p>
+                            <hr>
+                            <div class="d-flex justify-content-around text-center">
+                                <div>
+                                    <h5 id="profile-points" class="mb-0">0</h5>
+                                    <small class="text-muted">Points</small>
+                                </div>
+                                <div>
+                                    <h5 id="profile-badges-count" class="mb-0">0</h5>
+                                    <small class="text-muted">Badges</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Details and Editable Sections -->
+                    <div class="col-lg-8">
+                        <!-- General Info Card -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">My Details</h5>
+                                <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#edit-details-modal">
+                                    <i class="bi bi-pencil-square"></i> Edit
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Headline:</strong> <span id="profile-headline">...</span></p>
+                                <p><strong>Primary Goal:</strong> <span id="profile-goal">...</span></p>
+                                <p><strong>Email:</strong> <span id="profile-email">...</span></p>
+                                <p><strong>Languages:</strong> <span id="profile-langs">...</span></p>
+                            </div>
+                        </div>
+
+                        <!-- Skills Card -->
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">My Skills</h5>
+                                <button class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-plus-circle"></i> Add/Edit Skills
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <h6>Skills I'm Learning</h6>
+                                <div id="learning-skills-container" class="mb-3">
+                                    <p class="text-muted">No skills selected yet.</p>
+                                </div>
+                                <h6>Skills I Can Teach (Verified)</h6>
+                                <div id="teaching-skills-container">
+                                    <p class="text-muted">No skills verified yet.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-8">
-                    <div class="card mb-4">
-                        <div class="card-header"><h4>My Details</h4></div>
-                        <ul class="list-group list-group-flush">
-                            <li class="list-group-item"><strong>Primary Goal:</strong> <span id="profile-goal">...</span></li>
-                            <li class="list-group-item"><strong>Email:</strong> <span id="profile-email">...</span></li>
-                            <li class="list-group-item"><strong>Languages:</strong> <span id="profile-langs">...</span></li>
-                            <li class="list-group-item"><strong>Points:</strong> <span id="profile-points" class="fw-bold">...</span></li>
-                        </ul>
+            </div>
+        </div>
+
+        <!-- Edit Details Modal -->
+        <div class="modal fade" id="edit-details-modal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit My Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="card">
-                        <div class="card-header"><h4>My Badges & Skills</h4></div>
-                        <div id="profile-badges" class="card-body"><p class="text-muted">No badges earned yet.</p></div>
+                    <div class="modal-body">
+                        <form id="profile-update-form">
+                            <div class="mb-3">
+                                <label for="edit-headline" class="form-label">Headline</label>
+                                <input type="text" class="form-control" id="edit-headline">
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit-primaryGoal" class="form-label">Primary Goal</label>
+                                <select class="form-select" id="edit-primaryGoal">
+                                    <!-- Options will be populated by JS -->
+                                </select>
+                            </div>
+                            <!-- Add languages editor here -->
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="save-profile-changes">Save changes</button>
                     </div>
                 </div>
             </div>
-
         </div>
     </template>
 

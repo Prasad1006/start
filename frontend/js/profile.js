@@ -1,84 +1,94 @@
 // frontend/js/profile.js
 
+let currentUserData = {}; // Store user data globally on this page
+
 async function initializeProfilePage(clerk) {
-    if (!clerk.user) {
-        // This page is protected; redirect to login if not authenticated.
-        window.location.href = '/login.html';
-        return;
-    }
-
-    const loader = document.getElementById('profile-loader');
-    const details = document.getElementById('profile-details');
-    const wrapper = document.getElementById('profile-content-wrapper');
-
+    if (!clerk.user) { window.location.href = '/login.html'; return; }
+    
     try {
         const token = await clerk.session.getToken();
-        
-        // Call our simple, secure /api/profile endpoint.
-        const response = await fetch(`/api/profile`, {
+        const response = await fetch('/api/users/profile', {
             headers: { 'Authorization': 'Bearer ' + token }
         });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || 'Failed to fetch your profile data.');
-        }
-
-        const userData = await response.json();
+        if (!response.ok) throw new Error('Failed to fetch profile.');
         
-        // If successful, render the profile.
-        renderProfile(userData);
+        currentUserData = await response.json();
+        renderProfile(currentUserData);
 
-        // Hide the loader and show the populated content.
-        loader.style.display = 'none';
-        details.style.display = 'flex'; // Use 'flex' to make the row layout work correctly.
+        document.getElementById('profile-loader').style.display = 'none';
+        document.getElementById('profile-details').style.display = 'flex';
 
     } catch (error) {
-        console.error('Profile Page Error:', error);
-        // If any part of the process fails, show a clear error message.
-        wrapper.innerHTML = `<div class="alert alert-danger m-3">Could not load your profile. Error: ${error.message}</div>`;
+        document.getElementById('profile-content-wrapper').innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
     }
+    
+    // Attach event listeners after rendering
+    attachEventListeners(clerk);
 }
 
 function renderProfile(data) {
-    // Helper function to safely set the text content of an element by its ID.
-    const setText = (id, text) => {
+    // Helper function to safely set text or attributes
+    const setAttr = (id, attr, value) => {
         const el = document.getElementById(id);
-        if (el) el.textContent = text || 'Not provided';
+        if (el) el[attr] = value || (attr === 'src' ? 'https://via.placeholder.com/150' : '...');
     };
+    const setText = (id, value) => setAttr(id, 'textContent', value);
 
-    // Populate all the main profile fields
+    setAttr('profile-pic', 'src', data.profilePictureUrl);
     setText('profile-name', data.name);
-    setText('profile-headline', data.headline);
     setText('profile-username', data.username);
+    setText('profile-headline', data.headline);
     setText('profile-goal', data.primaryGoal);
     setText('profile-email', data.email);
     setText('profile-langs', data.preferredLanguages.join(', '));
     setText('profile-points', data.points);
+    setText('profile-badges-count', (data.badges || []).length);
 
-    // Update profile picture
-    const profilePic = document.getElementById('profile-pic');
-    if (profilePic && data.profilePictureUrl) {
-        profilePic.src = data.profilePictureUrl;
-    }
+    // Render skills
+    const learningContainer = document.getElementById('learning-skills-container');
+    const teachingContainer = document.getElementById('teaching-skills-container');
+    const learningSkills = data.learningProfile?.skillsToLearn || [];
+    const teachingSkills = data.tutorProfile?.teachableModules || [];
 
-    // Render badges and key learning profile tags
-    const badgesContainer = document.getElementById('profile-badges');
-    const learningProfile = data.learningProfile || {};
-    if (badgesContainer) {
-        let tagsHtml = '';
-        if (data.badges && data.badges.length > 0) {
-            data.badges.forEach(badge => {
-                tagsHtml += `<span class="badge bg-primary me-1 mb-1">${badge}</span>`;
+    learningContainer.innerHTML = learningSkills.length ? learningSkills.map(s => `<span class="badge bg-light text-dark border me-1 mb-1">${s}</span>`).join('') : '<p class="text-muted">No skills selected yet.</p>';
+    teachingContainer.innerHTML = teachingSkills.length ? teachingSkills.map(t => `<span class="badge bg-success me-1 mb-1">${t.module}</span>`).join('') : '<p class="text-muted">No skills verified yet.</p>';
+}
+
+function attachEventListeners(clerk) {
+    const editModal = document.getElementById('edit-details-modal');
+    
+    // When the "Edit" modal is about to be shown...
+    editModal.addEventListener('show.bs.modal', () => {
+        // ...populate the form with the user's current data.
+        document.getElementById('edit-headline').value = currentUserData.headline;
+        // ...populate the select dropdown and set its value...
+    });
+
+    // When the "Save" button in the modal is clicked...
+    document.getElementById('save-profile-changes').addEventListener('click', async () => {
+        const updatedData = {
+            headline: document.getElementById('edit-headline').value,
+            // ...get other values from the form...
+        };
+
+        try {
+            const token = await clerk.session.getToken();
+            const response = await fetch('/api/users/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify(updatedData)
             });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.detail || 'Update failed.');
+
+            // Success! Update the global data and re-render the page.
+            currentUserData = { ...currentUserData, ...result.user };
+            renderProfile(currentUserData);
+            
+            // Close the modal
+            bootstrap.Modal.getInstance(editModal).hide();
+        } catch (error) {
+            alert(`Error: ${error.message}`);
         }
-        if (learningProfile.stream) {
-            tagsHtml += `<span class="badge bg-secondary me-1 mb-1">${learningProfile.stream}</span>`;
-        }
-        if (learningProfile.branch) {
-            tagsHtml += `<span class="badge bg-secondary me-1 mb-1">${learningProfile.branch}</span>`;
-        }
-        
-        badgesContainer.innerHTML = tagsHtml || '<p class="text-muted">No badges earned yet.</p>';
-    }
+    });
 }
