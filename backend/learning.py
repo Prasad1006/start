@@ -1,20 +1,21 @@
-# backend/learning.py (FINAL CORRECTED VERSION)
+# backend/learning.py (THE FINAL AND CORRECT VERSION)
 import os
 from fastapi import APIRouter, Depends, HTTPException, status
-from qstash import client # <<< THE FINAL FIX: Import 'client' with a lowercase 'c'
+# === FINAL FIX 1: Import the 'Client' class from the 'client' module ===
+from qstash.client import Client
 from .database import roadmaps_collection
 from .auth import get_current_user 
 
-# Configure the router and QStash client
+# Configure the router
 router = APIRouter()
 QSTASH_URL = os.getenv("QSTASH_URL")
 QSTASH_TOKEN = os.getenv("QSTASH_TOKEN")
 
-# The library needs to be initialized outside the function
-# so it can be reused across requests.
-qstash_http_client = None # Renaming to be more descriptive
+# Instantiate the client
+qstash_client = None
 if QSTASH_TOKEN:
-    qstash_http_client = client(QSTASH_TOKEN) # <<< THE FINAL FIX: Instantiate 'client' with a lowercase 'c'
+    # === FINAL FIX 2: Instantiate the 'Client' class we just imported ===
+    qstash_client = Client(QSTASH_TOKEN)
 
 # This endpoint is called by the user's "Generate" button.
 @router.post("/api/roadmaps", status_code=status.HTTP_202_ACCEPTED)
@@ -32,12 +33,12 @@ async def request_roadmap_generation(
     if not skill_name:
         raise HTTPException(status_code=400, detail="Skill name is required.")
 
-    if not qstash_http_client or not QSTASH_URL:
+    if not qstash_client or not QSTASH_URL:
          raise HTTPException(status_code=500, detail="Queue service is not configured.")
 
     try:
-        # The method call itself was correct
-        qstash_http_client.publish_json({
+        # The method call is correct, as it's on the 'Client' object
+        qstash_client.publish_json({
             "url": f"{QSTASH_URL}/api/workers/generate-roadmap",
             "body": {"userId": user_id, "skill": skill_name}
         })
