@@ -18,15 +18,7 @@
   ],
   "routes": [
     {
-      "src": "/api/roadmaps",
-      "dest": "backend/main.py"
-    },
-    {
-      "src": "/api/users/onboarding-status",
-      "dest": "backend/main.py"
-    },
-    {
-      "src": "/api/dashboard",
+      "src": "/api/(.*)",
       "dest": "backend/main.py"
     },
     {
