@@ -1,3 +1,4 @@
+<!-- frontend/dashboard.html (fully updated version) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,11 +15,17 @@
                     <span id="user-points" class="badge bg-success fs-5">...</span>
                 </div>
             </div>
+
             <div id="dashboard-content">
-                <div class="text-center p-5"><div class="spinner-border text-primary"></div></div>
+                <h2 class="h4 border-bottom pb-2 mb-4">My Learning Roadmaps</h2>
+                <div id="learning-tracks-container" class="row">
+                    <!-- Loading Spinner for tracks -->
+                    <div class="text-center p-5"><div class="spinner-border text-primary"></div></div>
+                </div>
             </div>
         </div>
     </template>
+    
     <script src="/js/layout.js"></script>
     <script src="/js/dashboard.js"></script>
     <script>

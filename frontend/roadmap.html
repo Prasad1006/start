@@ -1,0 +1,49 @@
+<!-- frontend/roadmap.html (new file) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Learning Roadmap - Learn N Teach</title>
+</head>
+<body>
+    <template>
+        <div class="container py-5" id="roadmap-wrapper">
+            <!-- Loading state -->
+            <div id="roadmap-loader" class="text-center p-5">
+                <h1 class="fw-light mb-3">Loading Your Learning Plan...</h1>
+                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+            </div>
+
+            <!-- Content state (hidden initially) -->
+            <div id="roadmap-content" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h1 id="roadmap-skill-title" class="fw-light"></h1>
+                        <p class="text-muted">Your 8-week plan to master this skill.</p>
+                    </div>
+                    <a href="/dashboard.html" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+                
+                <div class="accordion" id="weekly-plan-accordion">
+                    <!-- Accordion items will be injected here by roadmap.js -->
+                </div>
+            </div>
+
+            <!-- Error state -->
+            <div id="roadmap-error" style="display: none;" class="alert alert-danger"></div>
+        </div>
+    </template>
+
+    <script src="/js/layout.js"></script>
+    <script src="/js/roadmap.js"></script>
+    <script>
+        function onClerkReady() {
+            if (window.Clerk && window.Clerk.user) {
+                initializeRoadmapPage(window.Clerk);
+            }
+        }
+    </script>
+</body>
+</html>
