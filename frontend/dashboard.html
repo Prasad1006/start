@@ -1,4 +1,3 @@
-<!-- frontend/dashboard.html (fully updated version) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,22 +14,23 @@
                     <span id="user-points" class="badge bg-success fs-5">...</span>
                 </div>
             </div>
-
             <div id="dashboard-content">
-                <h2 class="h4 border-bottom pb-2 mb-4">My Learning Roadmaps</h2>
-                <div id="learning-tracks-container" class="row">
-                    <!-- Loading Spinner for tracks -->
-                    <div class="text-center p-5"><div class="spinner-border text-primary"></div></div>
-                </div>
+                <div class="text-center p-5"><div class="spinner-border text-primary"></div></div>
             </div>
         </div>
     </template>
     
+    <!-- First, load the main layout which contains the Clerk setup -->
     <script src="/js/layout.js"></script>
+
+    <!-- Second, load the script that DEFINES initializeDashboard -->
     <script src="/js/dashboard.js"></script>
+    
+    <!-- Third, now that the function is defined, this inline script can safely CALL it -->
     <script>
         function onClerkReady() {
              if (window.Clerk && window.Clerk.user) {
+                // By the time this runs, dashboard.js has been loaded and parsed.
                 initializeDashboard(window.Clerk);
             }
         }

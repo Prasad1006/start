@@ -31,6 +31,7 @@ function initializeClerkNavigation() {
             if (userSection) userSection.style.display = 'none';
         }
         
+        // This is the important part. It calls the page-specific function.
         if (typeof onClerkReady === 'function') {
             onClerkReady();
         }
