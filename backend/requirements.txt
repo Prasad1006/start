@@ -1,9 +1,8 @@
-# backend/requirements.txt
+# backend/requirements.txt (FINAL DRAMATIQ VERSION)
 fastapi
 uvicorn
 python-dotenv
 pymongo
 requests
 google-generativeai
-httpx
-python-jose[cryptography]
+dramatiq[redis, watch]

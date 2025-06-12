@@ -7,15 +7,18 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from urllib.parse import quote
 
-from . import workers, learning, auth
+# --- Module Imports for the New Architecture ---
+from . import auth
 from .database import users_collection, roadmaps_collection
+from .tasks import generate_roadmap_task # This imports our new dramatiq background task
 
 load_dotenv()
 app = FastAPI()
 
-app.include_router(workers.router)
-app.include_router(learning.router)
+# Note: We do NOT include a router for 'tasks.py' because it doesn't serve HTTP requests.
+# It only defines actors for the worker process.
 
+# --- Pydantic Models (data shapes for request/response validation) ---
 class OnboardingData(BaseModel):
     username: str = Field(..., min_length=3, max_length=20, pattern="^[a-zA-Z0-9_]+$")
     headline: str; primaryGoal: str; preferredLanguages: List[str]; stream: str; branch: str
@@ -27,6 +30,29 @@ class LearningTrack(BaseModel):
 class DashboardData(BaseModel):
     name: str; points: int; isTutor: bool; learningTracks: List[LearningTrack]
 
+# --- API Endpoints ---
+
+# This endpoint now sends a message to the Dramatiq/Redis queue.
+@app.post("/api/roadmaps", status_code=202)
+async def request_roadmap(data: dict, current_user: dict = Depends(auth.get_current_user)):
+    """
+    Receives a request to generate a roadmap, then sends a message to the
+    dramatiq background worker to process it. This is fast and reliable.
+    """
+    skill_name = data.get("skill")
+    user_id = current_user.get("sub")
+
+    if not skill_name:
+        raise HTTPException(status_code=400, detail="Skill name is required.")
+
+    # The magic of Dramatiq: simply call .send() on the imported task function.
+    # This sends a message to Redis, which the Vercel worker will pick up.
+    generate_roadmap_task.send(user_id, skill_name)
+
+    return {"message": "Roadmap generation has been successfully scheduled."}
+
+
+# This endpoint creates the user profile in the database.
 @app.post("/api/users/onboard", status_code=201)
 async def onboard_user(data: OnboardingData, current_user: dict = Depends(auth.get_current_user)):
     if users_collection is None: raise HTTPException(status_code=503, detail="Database service unavailable.")
@@ -37,12 +63,17 @@ async def onboard_user(data: OnboardingData, current_user: dict = Depends(auth.g
     users_collection.insert_one(doc)
     return {"message": "Onboarding successful!"}
 
+
+# This endpoint checks if the user has a profile.
 @app.get("/api/users/onboarding-status")
 async def get_onboarding_status(current_user: dict = Depends(auth.get_current_user)):
     if users_collection is None: raise HTTPException(status_code=503, detail="Database service temporarily unavailable.")
-    if users_collection.find_one({"userId": current_user.get("sub")}, {"_id": 1}): return {"status": "completed"}
+    if users_collection.find_one({"userId": current_user.get("sub")}, {"_id": 1}):
+        return {"status": "completed"}
     return {"status": "pending"}
 
+
+# This endpoint gets the data for the main dashboard.
 @app.get("/api/dashboard", response_model=DashboardData)
 async def get_dashboard_data(current_user: dict = Depends(auth.get_current_user)):
     if users_collection is None or roadmaps_collection is None: raise HTTPException(status_code=503, detail="Database service temporarily unavailable.")
@@ -54,6 +85,8 @@ async def get_dashboard_data(current_user: dict = Depends(auth.get_current_user)
     tracks = [{"skill": s, "skill_slug": gen_maps.get(s, quote(s.lower().replace(" ", "-"), safe='')), "progress_summary": "Ready to Start" if s in gen_maps else "AI Roadmap Not Generated", "progress_percent": 0, "generated": s in gen_maps} for s in skills]
     return {"name": profile.get("name", ""), "points": profile.get("points", 0), "isTutor": profile.get("tutorProfile", {}).get("isTutor", False), "learningTracks": tracks}
 
+
+# This endpoint gets the full user profile data.
 @app.get("/api/profile")
 async def get_my_profile(current_user: dict = Depends(auth.get_current_user)):
     if users_collection is None: raise HTTPException(status_code=503, detail="Database service unavailable.")
