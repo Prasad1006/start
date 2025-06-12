@@ -1,9 +1,9 @@
-# backend/learning.py (new file)
+# backend/learning.py (FIXED version)
 import os
 from fastapi import APIRouter, Depends, HTTPException, status
 from qstash import QStash
 from .database import roadmaps_collection
-from .main import get_current_user # Re-use the auth dependency
+from .auth import get_current_user # <<< THIS IS THE FIX. Import from auth.py
 
 # Configure the router and QStash client
 router = APIRouter()

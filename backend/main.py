@@ -6,20 +6,18 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import List
 from datetime import datetime
-from jose import jwt, JWTError
-import requests
 from dotenv import load_dotenv
 
-# --- Our new module imports ---
+# --- Our module imports ---
 from . import workers
 from . import learning
+from .auth import get_current_user # <<< THIS IS THE FIX. Import from auth.py
 
 # --- Startup & Database Initialization ---
 load_dotenv()
 CLERK_JWT_ISSUER = os.getenv("CLERK_JWT_ISSUER")
 
 try:
-    # Now importing from our single database source file
     from .database import users_collection, roadmaps_collection
     if users_collection is None:
         raise ImportError("Database connection failed, users_collection is None.")
@@ -34,7 +32,7 @@ app = FastAPI()
 app.include_router(workers.router)
 app.include_router(learning.router)
 
-# --- Pydantic Models (Unchanged, but good to keep for context) ---
+# --- Pydantic Models (Unchanged) ---
 class OnboardingData(BaseModel):
     username: str = Field(..., min_length=3, max_length=20, pattern="^[a-zA-Z0-9_]+$")
     headline: str; primaryGoal: str; preferredLanguages: List[str]; stream: str; branch: str
@@ -43,9 +41,9 @@ class OnboardingData(BaseModel):
 class LearningTrack(BaseModel):
     skill: str
     skill_slug: str
-    progress_summary: str # e.g., "Week 1 of 8"
+    progress_summary: str
     progress_percent: int
-    generated: bool # True if roadmap exists, False otherwise
+    generated: bool
 
 class DashboardData(BaseModel):
     name: str
@@ -53,18 +51,8 @@ class DashboardData(BaseModel):
     isTutor: bool
     learningTracks: List[LearningTrack]
 
-# --- Auth Dependency (Unchanged) ---
-async def get_current_user(request: Request):
-    if not CLERK_JWT_ISSUER: raise HTTPException(status_code=500, detail="JWT Issuer not configured.")
-    token = request.headers.get('Authorization', '').split(' ')[-1]
-    try:
-        jwks = requests.get(f"{CLERK_JWT_ISSUER}/.well-known/jwks.json").json()
-        unverified_header = jwt.get_unverified_header(token)
-        rsa_key = next((key for key in jwks["keys"] if key["kid"] == unverified_header["kid"]), None)
-        if not rsa_key: raise HTTPException(status_code=401, detail="Key not found")
-        return jwt.decode(token, rsa_key, algorithms=["RS256"], issuer=CLERK_JWT_ISSUER)
-    except (JWTError, IndexError) as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
+# --- Auth Dependency is now REMOVED from this file ---
+# It has been moved to backend/auth.py
 
 # --- API Endpoints ---
 @app.post("/api/users/onboard", status_code=status.HTTP_201_CREATED)
@@ -100,18 +88,15 @@ async def get_onboarding_status(current_user: dict = Depends(get_current_user)):
         return {"status": "completed"}
     return {"status": "pending"}
 
-# --- MODIFIED ENDPOINT ---
 @app.get("/api/dashboard", response_model=DashboardData)
 async def get_dashboard_data(current_user: dict = Depends(get_current_user)):
+    # ... (This logic is correct and remains unchanged) ...
     user_id = current_user.get("sub")
     user_profile = users_collection.find_one({"userId": user_id})
     if not user_profile:
         raise HTTPException(status_code=404, detail="User profile not found. Please complete onboarding.")
 
-    # Get the user's selected skills to learn
     skills_to_learn = user_profile.get("learningProfile", {}).get("skillsToLearn", [])
-    
-    # Get all roadmaps that have already been generated for this user
     generated_roadmaps = list(roadmaps_collection.find({"userId": user_id}, {"skill": 1, "skill_slug": 1}))
     generated_skills = {r["skill"]: r["skill_slug"] for r in generated_roadmaps}
 
@@ -137,7 +122,7 @@ async def get_dashboard_data(current_user: dict = Depends(get_current_user)):
 
 @app.get("/api/profile")
 async def get_my_profile(current_user: dict = Depends(get_current_user)):
-    # ... (This logic is correct and remains unchanged) ...
+    # ... (Unchanged) ...
     if users_collection is None: raise HTTPException(status_code=503, detail="Database service unavailable.")
     user_id = current_user.get("sub")
     user_profile = users_collection.find_one({"userId": user_id})
