@@ -1,4 +1,4 @@
-# backend/main.py (FINAL STABLE VERSION)
+# backend/main.py (FINAL VERSION WITH CORRECTED JWT CLAIMS)
 import os
 from fastapi import FastAPI, Depends, HTTPException, status
 from typing import List
@@ -31,28 +31,50 @@ class DashboardData(BaseModel):
     name: str; points: int; isTutor: bool; learningTracks: List[LearningTrack]
 
 # --- API Endpoints ---
-@app.post("/api/users/onboard", status_code=status.HTTP_201_CREATED)
-async def onboard__user(data: OnboardingData, current_user: dict = Depends(auth.get_current_user)):
+@app.post("/api/users/onboard", status_code=201)
+async def onboard_user(data: OnboardingData, current_user: dict = Depends(auth.get_current_user)):
     if users_collection is None: raise HTTPException(status_code=503, detail="Database service unavailable.")
+    
+    # --- CORRECT JWT PAYLOAD ACCESS ---
     user_id = current_user.get("sub")
+    name = current_user.get("name") # `name` is often a top-level claim
+    first_name = current_user.get("first_name")
+    last_name = current_user.get("last_name")
+    image_url = current_user.get("picture") # The URL is in the 'picture' claim
+    
+    # Clerk does not guarantee a top-level email claim.
+    # We use the 'user_id' for lookup as it's the most reliable unique identifier.
+    # An email can be fetched separately if needed but is not required for this document.
+    
     if users_collection.find_one({"userId": user_id}): return {"message": "User already has a profile."}
     if users_collection.find_one({"username": data.username}): raise HTTPException(status_code=400, detail="Username is already taken.")
-    doc = { "userId": user_id, "username": data.username, "email": current_user.get("email_addresses", [None])[0], "name": current_user.get("name") or f"{current_user.get('firstName', '')} {current_user.get('lastName', '')}".strip(), "headline": data.headline, "profilePictureUrl": current_user.get("imageUrl", ""), "points": 100, "badges": ["The Trailblazer"], "primaryGoal": data.primaryGoal, "preferredLanguages": data.preferredLanguages, "createdAt": datetime.utcnow(), "learningProfile": {"stream": data.stream, "branch": data.branch, "domains": data.selectedDomains, "skillsToLearn": data.skillsToLearn}, "tutorProfile": {"isTutor": len(data.skillsToTeach) > 0, "teachableModules": []} }
-    users_collection.insert_one(doc)
+    
+    user_doc = { 
+        "userId": user_id, 
+        "username": data.username,
+        "email": None, # Email is not reliably available in the standard token, can be updated later
+        "name": name or f"{first_name or ''} {last_name or ''}".strip(), 
+        "headline": data.headline, 
+        "profilePictureUrl": image_url, 
+        "points": 100, "badges": ["The Trailblazer"], 
+        "primaryGoal": data.primaryGoal, "preferredLanguages": data.preferredLanguages, 
+        "createdAt": datetime.utcnow(), 
+        "learningProfile": {"stream": data.stream, "branch": data.branch, "domains": data.selectedDomains, "skillsToLearn": data.skillsToLearn}, 
+        "tutorProfile": {"isTutor": len(data.skillsToTeach) > 0, "teachableModules": []} 
+    }
+    users_collection.insert_one(user_doc)
     return {"message": "Onboarding successful!"}
 
 @app.get("/api/users/onboarding-status")
 async def get_onboarding_status(current_user: dict = Depends(auth.get_current_user)):
-    if users_collection is None:
-        raise HTTPException(status_code=503, detail="Database service temporarily unavailable.")
+    if users_collection is None: raise HTTPException(status_code=503, detail="Database service unavailable.")
     if users_collection.find_one({"userId": current_user.get("sub")}, {"_id": 1}):
         return {"status": "completed"}
     return {"status": "pending"}
 
 @app.get("/api/dashboard", response_model=DashboardData)
 async def get_dashboard_data(current_user: dict = Depends(auth.get_current_user)):
-    if users_collection is None or roadmaps_collection is None:
-        raise HTTPException(status_code=503, detail="Database service temporarily unavailable.")
+    if users_collection is None or roadmaps_collection is None: raise HTTPException(status_code=503, detail="Database service unavailable.")
     user_id = current_user.get("sub")
     profile = users_collection.find_one({"userId": user_id})
     if not profile: raise HTTPException(status_code=404, detail="User profile not found.")

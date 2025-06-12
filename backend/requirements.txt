@@ -1,10 +1,9 @@
-# backend/requirements.txt (REVISED - NO QSTASH)
+# backend/requirements.txt (FINAL VERIFIED VERSION)
 fastapi
 uvicorn
 python-dotenv
 pymongo
 requests
-python-jose[cryptography]
-passlib[bcrypt]
 google-generativeai
 httpx
+python-jose[cryptography]
