@@ -3,13 +3,18 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, status
 from qstash import QStash
 from .database import roadmaps_collection
-from .auth import get_current_user # <<< THIS IS THE FIX. Import from auth.py
+from .auth import get_current_user 
 
 # Configure the router and QStash client
 router = APIRouter()
 QSTASH_URL = os.getenv("QSTASH_URL")
 QSTASH_TOKEN = os.getenv("QSTASH_TOKEN")
-qstash_client = QStash(QSTASH_TOKEN)
+
+# The library needs to be initialized outside the function
+# so it can be reused across requests.
+client = None
+if QSTASH_TOKEN:
+    client = QStash(QSTASH_TOKEN)
 
 # This endpoint is called by the user's "Generate" button.
 @router.post("/api/roadmaps", status_code=status.HTTP_202_ACCEPTED)
@@ -27,12 +32,13 @@ async def request_roadmap_generation(
     if not skill_name:
         raise HTTPException(status_code=400, detail="Skill name is required.")
 
-    if not QSTASH_URL or not QSTASH_TOKEN:
+    if not client or not QSTASH_URL:
          raise HTTPException(status_code=500, detail="Queue service is not configured.")
 
     try:
-        # Publish a job to our worker webhook
-        qstash_client.publish_json({
+        # === THIS IS THE FIX ===
+        # Changed from .publish_json to .publish
+        client.publish({
             "url": f"{QSTASH_URL}/api/workers/generate-roadmap",
             "body": {"userId": user_id, "skill": skill_name}
         })
