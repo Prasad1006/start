@@ -49,18 +49,58 @@ async def get_onboarding_status(current_user: dict = Depends(auth.get_current_us
         return {"status": "completed"}
     return {"status": "pending"}
 
+
 @app.get("/api/dashboard", response_model=DashboardData)
 async def get_dashboard_data(current_user: dict = Depends(auth.get_current_user)):
-    if users_collection is None: raise HTTPException(503, "Database unavailable.")
+    # Defensive check at the very top
+    if users_collection is None: 
+        raise HTTPException(status_code=503, detail="Database connection failed.")
+
     user_id = current_user.get("sub")
     profile = users_collection.find_one({"userId": user_id})
-    if not profile: raise HTTPException(404, "User profile not found.")
-    skills = profile.get("learningProfile", {}).get("skillsToLearn", [])
-    gen_maps = {}
-    if roadmaps_collection:
-        gen_maps = {r["skill"]: r["skill_slug"] for r in roadmaps_collection.find({"userId": user_id}, {"skill": 1, "skill_slug": 1})}
-    tracks = [{"skill": s, "skill_slug": gen_maps.get(s, quote(s.lower().replace(" ","-"),safe='')), "progress_summary": "Ready to Start" if s in gen_maps else "AI Roadmap Not Generated", "progress_percent": 0, "generated": s in gen_maps} for s in skills]
-    return {"name": profile.get("name",""), "points": profile.get("points",0), "isTutor": profile.get("tutorProfile",{}).get("isTutor",False), "learningTracks": tracks}
+    if not profile:
+        # This can happen if the user's onboarding is in progress.
+        # Returning a 404 is correct, but let's give a clear message.
+        raise HTTPException(status_code=404, detail="User profile not yet fully created. Please wait or complete onboarding.")
+
+    skills_to_learn = profile.get("learningProfile", {}).get("skillsToLearn", [])
+    
+    # --- START OF THE FIX ---
+    generated_roadmaps = []
+    if roadmaps_collection: # Check if the collection itself exists
+        # Find all roadmaps for this user. This returns a cursor.
+        cursor = roadmaps_collection.find({"userId": user_id})
+        # Safely iterate through the cursor. If it's empty, this loop doesn't run.
+        generated_roadmaps = list(cursor)
+
+    # Create a dictionary to easily look up if a roadmap for a skill exists.
+    # We now safely check if 'skill' and 'skill_slug' exist in each document.
+    generated_skills_map = {
+        r.get("skill"): r.get("skill_slug") 
+        for r in generated_roadmaps 
+        if r.get("skill") and r.get("skill_slug")
+    }
+
+    learning_tracks = []
+    for skill in skills_to_learn:
+        is_generated = skill in generated_skills_map
+        slug = generated_skills_map.get(skill) if is_generated else quote(skill.lower().replace(" ", "-").replace("/", "-"), safe='')
+        
+        learning_tracks.append({
+            "skill": skill,
+            "skill_slug": slug,
+            "progress_summary": "Ready to Start" if is_generated else "AI Roadmap Not Generated",
+            "progress_percent": 0,
+            "generated": is_generated
+        })
+    # --- END OF THE FIX ---
+
+    return {
+        "name": profile.get("name", ""),
+        "points": profile.get("points", 0),
+        "isTutor": profile.get("tutorProfile", {}).get("isTutor", False),
+        "learningTracks": learning_tracks
+    }
 
 @app.get("/api/profile")
 async def get_my_profile(current_user: dict = Depends(auth.get_current_user)):
