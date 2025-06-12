@@ -1,7 +1,9 @@
 # backend/src/users/service.py
 
-from ..core.database import users_collection # Assumes database.py is in the core folder
+# The import is now relative to the 'backend' folder.
+from backend.src.core.db import users_collection
 from datetime import datetime
+
 
 async def get_user_profile_by_id(user_id: str):
     """Fetches a user profile from the database by their unique user ID."""
