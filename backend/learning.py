@@ -1,31 +1,22 @@
-# backend/learning.py (THE FINAL AND VERIFIED CORRECT VERSION)
+# backend/learning.py
 import os
+import sys
 from fastapi import APIRouter, Depends, HTTPException, status
-# === FINAL FIX 1: The import IS 'QStash' with a capital Q ===
 from qstash import QStash 
 from .database import roadmaps_collection
 from .auth import get_current_user 
 
-# Configure the router
+# Configure the router for our learning-related endpoints
 router = APIRouter()
-QSTASH_URL = os.getenv("QSTASH_URL")
-QSTASH_TOKEN = os.getenv("QSTASH_TOKEN")
 
-# Instantiate the client
-qstash_client = None
-if QSTASH_TOKEN:
-    # === FINAL FIX 2: The token MUST be passed inside a dictionary like this ===
-    qstash_client = QStash({"token": QSTASH_TOKEN})
-
-# This endpoint is called by the user's "Generate" button.
 @router.post("/api/roadmaps", status_code=status.HTTP_202_ACCEPTED)
 async def request_roadmap_generation(
     data: dict, 
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Receives a request from the user to generate a learning roadmap.
-    It creates a job and sends it to the QStash queue for background processing.
+    Receives a request to generate a roadmap. This endpoint queues a job for a 
+    background worker and returns immediately, preventing timeouts.
     """
     skill_name = data.get("skill")
     user_id = current_user.get("sub")
@@ -33,20 +24,37 @@ async def request_roadmap_generation(
     if not skill_name:
         raise HTTPException(status_code=400, detail="Skill name is required.")
 
-    if not qstash_client or not QSTASH_URL:
-         raise HTTPException(status_code=500, detail="Queue service is not configured.")
+    # --- Robust Initialization inside the endpoint ---
+    # 1. Get secrets from the environment at runtime.
+    qstash_token = os.getenv("QSTASH_TOKEN")
+    qstash_url = os.getenv("QSTASH_URL")
+
+    # 2. Check that the secrets were loaded correctly on the server.
+    if not qstash_token or not qstash_url:
+         raise HTTPException(
+             status_code=503, 
+             detail="Queue service is not configured on the server. Please contact support."
+         )
 
     try:
-        # The method call 'publish_json' is correct.
-        qstash_client.publish_json({
-            "url": f"{QSTASH_URL}/api/workers/generate-roadmap",
+        # 3. Initialize the QStash client just-in-time.
+        #    This is the official, correct way to instantiate the client.
+        client = QStash({"token": qstash_token})
+
+        # 4. Use the client to publish the job to the worker.
+        client.publish_json({
+            "url": f"{qstash_url}/api/workers/generate-roadmap",
             "body": {"userId": user_id, "skill": skill_name}
         })
-        return {"message": "Roadmap generation has been queued."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to queue job: {e}")
+        
+        return {"message": "Roadmap generation has been queued successfully."}
 
-# This endpoint is called by the new roadmap.html page.
+    except Exception as e:
+        # This will catch any error, either during initialization or publishing.
+        print(f"!!! FAILED TO QUEUE ROADMAP JOB: {e}", file=sys.stderr)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while queueing the job.")
+
+
 @router.get("/api/roadmaps/{skill_slug}")
 async def get_roadmap_by_skill(skill_slug: str, current_user: dict = Depends(get_current_user)):
     """
@@ -56,11 +64,14 @@ async def get_roadmap_by_skill(skill_slug: str, current_user: dict = Depends(get
         raise HTTPException(status_code=503, detail="Database service unavailable.")
 
     user_id = current_user.get("sub")
+    
+    # Query the database for the specific roadmap document.
     roadmap = roadmaps_collection.find_one({"userId": user_id, "skill_slug": skill_slug})
     
     if not roadmap:
-        raise HTTPException(status_code=404, detail="Roadmap not found or not generated yet.")
+        raise HTTPException(status_code=404, detail="Roadmap not found. It may still be generating or has not been requested.")
 
-    # Convert ObjectId to string for JSON serialization
+    # Convert MongoDB's ObjectId to a string so it can be sent in the JSON response.
     roadmap["_id"] = str(roadmap["_id"])
+    
     return roadmap
