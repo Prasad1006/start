@@ -30,23 +30,32 @@ async def process_roadmap_generation(request: Request, x_worker_secret: str = He
         user_id, skill_name = body.get("userId"), body.get("skill")
         if not user_id or not skill_name:
             raise HTTPException(status_code=400, detail="Missing data in payload.")
-        
-        prompt = f"""Act as an expert curriculum designer. Your task is to create a detailed, structured, 8-week learning roadmap for the skill: "{skill_name}".
-The output MUST be a valid JSON object. Do not include any text or markdown formatting before or after the JSON.
-Each object in the array represents a week and must have the keys "week", "topic", "description", and "status" (initially "PENDING")."""
+
+        prompt = f"""Act as an expert curriculum designer. Your task is to create a detailed, structured, 8-week learning roadmap for the skill: \"{skill_name}\".\nThe output MUST be a valid JSON array (not an object). Do not include any text or markdown formatting.\nEach object in the array must have keys \"week\", \"topic\", \"description\", and \"status\" (initially \"PENDING\")."""
 
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = await model.generate_content_async(prompt)
-        roadmap_data = json.loads(response.text.replace("```json", "").replace("```", "").strip())
-        
+
+        try:
+            raw_text = response.text.replace("```json", "").replace("```", "").strip()
+            roadmap_data = json.loads(raw_text)
+            weekly_plan = roadmap_data if isinstance(roadmap_data, list) else roadmap_data.get("weeklyPlan", [])
+        except Exception as parse_error:
+            print("❌ Gemini raw output:", response.text, file=sys.stderr)
+            raise HTTPException(status_code=500, detail="Failed to parse Gemini AI output.")
+
         safe_skill_slug = quote(skill_name.lower().replace(" ", "-"), safe='')
         doc = {
-            "userId": user_id, "skill": skill_name, "skill_slug": safe_skill_slug,
-            "weeklyPlan": roadmap_data.get("weeklyPlan", []), "createdAt": datetime.utcnow()
+            "userId": user_id,
+            "skill": skill_name,
+            "skill_slug": safe_skill_slug,
+            "weeklyPlan": weekly_plan,
+            "createdAt": datetime.utcnow()
         }
-        
+
         roadmaps_collection.insert_one(doc)
         return {"status": "success"}
+
     except Exception as e:
         print(f"!!! WORKER ERROR: {e}", file=sys.stderr)
         raise HTTPException(status_code=500, detail="Internal worker error.")

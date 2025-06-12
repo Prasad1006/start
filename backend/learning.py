@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from .auth import get_current_user
 from .database import roadmaps_collection
 
+print(f"In {__file__}, WORKER_SECRET_KEY is set: {os.getenv('WORKER_SECRET_KEY') is not None}", file=sys.stderr)
+
 router = APIRouter()
 WORKER_SECRET_KEY = os.getenv("WORKER_SECRET_KEY")
 
@@ -27,7 +29,7 @@ async def request_roadmap_generation(
     user_id = current_user.get("sub")
     if not skill_name: raise HTTPException(status_code=400, detail="Skill name is required.")
     if not WORKER_SECRET_KEY: raise HTTPException(status_code=503, detail="Worker service is not configured.")
-    base_url = os.getenv("VERCEL_URL", "http://localhost:8000")
+    base_url = os.getenv("VERCEL_URL", "https://start-eight-virid.vercel.app/")
     if not base_url.startswith("http"): base_url = "https://" + base_url
     worker_url = f"{base_url}/api/workers/generate-roadmap"
     payload = {"userId": user_id, "skill": skill_name}
