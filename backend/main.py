@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from urllib.parse import quote
 
 # --- Module Imports ---
-from . import workers, learning, auth
+from . import workers, learning, auth, cron
 from .database import connect_to_mongo, close_mongo_connection, get_db_dependency
 
 # --- App & Lifespan ---
