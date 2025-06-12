@@ -2,7 +2,7 @@
 import os
 import sys
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from .auth import get_current_user
 from .database import roadmaps_collection
 
@@ -21,27 +21,36 @@ async def trigger_worker(url: str, payload: dict, headers: dict):
 
 @router.post("/api/roadmaps", status_code=202)
 async def request_roadmap_generation(
+    request: Request,
     data: dict,
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user)
 ):
     skill_name = data.get("skill")
     user_id = current_user.get("sub")
-    if not skill_name: raise HTTPException(status_code=400, detail="Skill name is required.")
-    if not WORKER_SECRET_KEY: raise HTTPException(status_code=503, detail="Worker service is not configured.")
-    base_url = os.getenv("VERCEL_URL", "https://start-eight-virid.vercel.app/")
-    if not base_url.startswith("http"): base_url = "https://" + base_url
+
+    if not skill_name:
+        raise HTTPException(status_code=400, detail="Skill name is required.")
+    if not WORKER_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Worker service is not configured.")
+
+    base_url = str(request.base_url).rstrip("/")
     worker_url = f"{base_url}/api/workers/generate-roadmap"
+
     payload = {"userId": user_id, "skill": skill_name}
     headers = {"x-worker-secret": WORKER_SECRET_KEY}
+
     background_tasks.add_task(trigger_worker, worker_url, payload, headers)
     return {"message": "Roadmap generation has been successfully scheduled."}
 
 @router.get("/api/roadmaps/{skill_slug}")
 async def get_roadmap_by_skill(skill_slug: str, current_user: dict = Depends(get_current_user)):
-    if roadmaps_collection is None: raise HTTPException(status_code=503, detail="Database service unavailable.")
+    if roadmaps_collection is None:
+        raise HTTPException(status_code=503, detail="Database service unavailable.")
+
     user_id = current_user.get("sub")
     roadmap = roadmaps_collection.find_one({"userId": user_id, "skill_slug": skill_slug})
-    if not roadmap: raise HTTPException(status_code=404, detail="Roadmap not found.")
+    if not roadmap:
+        raise HTTPException(status_code=404, detail="Roadmap not found.")
     roadmap["_id"] = str(roadmap["_id"])
     return roadmap
