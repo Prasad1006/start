@@ -1,3 +1,4 @@
+# backend/database.py (fully updated version)
 import os
 import sys
 from pymongo import MongoClient
@@ -10,7 +11,7 @@ load_dotenv()
 client = None
 db = None
 users_collection = None
-roadmaps_collection = None
+roadmaps_collection = None # <<< ADDED
 sessions_collection = None
 
 # --- Get the connection string from environment variables ---
@@ -29,7 +30,7 @@ else:
         
         db = client.learn_n_teach_db
         users_collection = db.users
-        roadmaps_collection = db.roadmaps
+        roadmaps_collection = db.roadmaps # <<< ADDED
         sessions_collection = db.sessions
         print("✅ Database collections initialized.", file=sys.stderr)
 
