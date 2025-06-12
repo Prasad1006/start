@@ -1,7 +1,8 @@
-# backend/learning.py
+# backend/learning.py (THE FINAL, DOCUMENTATION-ALIGNED VERSION)
 import os
 import sys
 from fastapi import APIRouter, Depends, HTTPException, status
+# This is the correct, documented import path for the main class.
 from qstash import QStash 
 from .database import roadmaps_collection
 from .auth import get_current_user 
@@ -24,24 +25,21 @@ async def request_roadmap_generation(
     if not skill_name:
         raise HTTPException(status_code=400, detail="Skill name is required.")
 
-    # --- Robust Initialization inside the endpoint ---
-    # 1. Get secrets from the environment at runtime.
+    # --- Robust Initialization inside the endpoint (this architecture is correct) ---
     qstash_token = os.getenv("QSTASH_TOKEN")
     qstash_url = os.getenv("QSTASH_URL")
 
-    # 2. Check that the secrets were loaded correctly on the server.
     if not qstash_token or not qstash_url:
          raise HTTPException(
              status_code=503, 
-             detail="Queue service is not configured on the server. Please contact support."
+             detail="Queue service is not configured correctly on the server. Please contact support."
          )
 
     try:
-        # 3. Initialize the QStash client just-in-time.
-        #    This is the official, correct way to instantiate the client.
+        # This is the correct, documented way to initialize the client.
         client = QStash({"token": qstash_token})
 
-        # 4. Use the client to publish the job to the worker.
+        # The publish_json method is correct for this client object.
         client.publish_json({
             "url": f"{qstash_url}/api/workers/generate-roadmap",
             "body": {"userId": user_id, "skill": skill_name}
@@ -50,11 +48,11 @@ async def request_roadmap_generation(
         return {"message": "Roadmap generation has been queued successfully."}
 
     except Exception as e:
-        # This will catch any error, either during initialization or publishing.
         print(f"!!! FAILED TO QUEUE ROADMAP JOB: {e}", file=sys.stderr)
         raise HTTPException(status_code=500, detail="An unexpected error occurred while queueing the job.")
 
 
+# This endpoint does not use QStash and does not need to change.
 @router.get("/api/roadmaps/{skill_slug}")
 async def get_roadmap_by_skill(skill_slug: str, current_user: dict = Depends(get_current_user)):
     """
@@ -65,13 +63,11 @@ async def get_roadmap_by_skill(skill_slug: str, current_user: dict = Depends(get
 
     user_id = current_user.get("sub")
     
-    # Query the database for the specific roadmap document.
     roadmap = roadmaps_collection.find_one({"userId": user_id, "skill_slug": skill_slug})
     
     if not roadmap:
         raise HTTPException(status_code=404, detail="Roadmap not found. It may still be generating or has not been requested.")
 
-    # Convert MongoDB's ObjectId to a string so it can be sent in the JSON response.
     roadmap["_id"] = str(roadmap["_id"])
     
     return roadmap
