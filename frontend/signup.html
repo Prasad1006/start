@@ -17,22 +17,17 @@
         data-clerk-publishable-key="pk_test_aWRlYWwtaGFnZmlzaC02NS5jbGVyay5hY2NvdW50cy5kZXYk"
         onload="startClerk()"
     ></script>
-
     <script>
         async function startClerk() {
             const Clerk = window.Clerk;
-            try {
-                await Clerk.load();
-                 if (Clerk.user) {
-                    window.location.href = '/dashboard.html';
-                    return;
-                }
-                Clerk.mountSignUp(document.getElementById('sign-up'), {
-                    afterSignUpUrl: '/onboarding-profile.html' // Redirect to the start of our onboarding flow
-                });
-            } catch (error) {
-                console.error("Clerk mounting error:", error);
+            await Clerk.load();
+            if (Clerk.user) {
+                window.location.href = '/dashboard.html';
+                return;
             }
+            Clerk.mountSignUp(document.getElementById('sign-up'), {
+                afterSignUpUrl: '/onboarding-profile.html'
+            });
         }
     </script>
 </body>

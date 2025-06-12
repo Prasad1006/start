@@ -1,4 +1,4 @@
-# backend/requirements.txt (FINAL VERIFIED VERSION)
+# backend/requirements.txt
 fastapi
 uvicorn
 python-dotenv

@@ -10,13 +10,12 @@ if not CLERK_ISSUER_URL:
     raise RuntimeError("CLERK_JWT_ISSUER environment variable not set.")
 
 JWKS_URL = f"{CLERK_ISSUER_URL}/.well-known/jwks.json"
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 try:
     jwks = requests.get(JWKS_URL).json()
 except requests.exceptions.RequestException as e:
-    raise RuntimeError(f"Could not fetch Clerk JWKS: {e}")
+    raise RuntimeError(f"Could not fetch Clerk JWKS on startup: {e}")
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     try:

@@ -1,4 +1,4 @@
-# backend/workers.py (REVERTED TO STABLE VERSION)
+# backend/workers.py
 import os
 import sys
 import json
@@ -6,18 +6,15 @@ import google.generativeai as genai
 from fastapi import APIRouter, Request, HTTPException, status, Header
 from datetime import datetime
 from urllib.parse import quote
+from .database import roadmaps_collection
 
 router = APIRouter()
 WORKER_SECRET_KEY = os.getenv("WORKER_SECRET_KEY")
 
-@router.post("/api/workers/generate-roadmap", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/api/workers/generate-roadmap", status_code=202)
 async def process_roadmap_generation(request: Request, x_worker_secret: str = Header(None)):
-    """Worker endpoint secured with a secret header."""
-    from .database import roadmaps_collection # Import inside function
-    
     if not WORKER_SECRET_KEY or x_worker_secret != WORKER_SECRET_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized worker access.")
-
     if not roadmaps_collection:
         raise HTTPException(status_code=503, detail="DB service not available to worker.")
 
@@ -32,14 +29,19 @@ async def process_roadmap_generation(request: Request, x_worker_secret: str = He
         if not user_id or not skill_name:
             raise HTTPException(status_code=400, detail="Missing data in payload.")
         
-        prompt = f"""Act as an expert curriculum designer... for "{skill_name}"...""" # Use your full prompt
+        prompt = f"""Act as an expert curriculum designer. Your task is to create a detailed, structured, 8-week learning roadmap for the skill: "{skill_name}".
+The output MUST be a valid JSON object. Do not include any text or markdown formatting before or after the JSON.
+Each object in the array represents a week and must have the keys "week", "topic", "description", and "status" (initially "PENDING")."""
 
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = await model.generate_content_async(prompt)
         roadmap_data = json.loads(response.text.replace("```json", "").replace("```", "").strip())
         
         safe_skill_slug = quote(skill_name.lower().replace(" ", "-"), safe='')
-        doc = {"userId": user_id, "skill": skill_name, "skill_slug": safe_skill_slug, "weeklyPlan": roadmap_data.get("weeklyPlan", []), "createdAt": datetime.utcnow()}
+        doc = {
+            "userId": user_id, "skill": skill_name, "skill_slug": safe_skill_slug,
+            "weeklyPlan": roadmap_data.get("weeklyPlan", []), "createdAt": datetime.utcnow()
+        }
         
         roadmaps_collection.insert_one(doc)
         return {"status": "success"}

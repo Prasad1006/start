@@ -1,6 +1,6 @@
 async function enforceOnboarding() {
     const Clerk = window.Clerk;
-    if (!Clerk.user) return; // Not logged in, do nothing.
+    if (!Clerk || !Clerk.user) return;
 
     const allowedOnboardingPages = [
         '/onboarding-profile.html',

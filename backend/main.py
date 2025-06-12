@@ -33,7 +33,6 @@ async def onboard_user(data: OnboardingData, current_user: dict = Depends(auth.g
     user_id = current_user.get("sub")
     if users_collection.find_one({"userId": user_id}): return {"message": "User already has a profile."}
     if users_collection.find_one({"username": data.username}): raise HTTPException(status_code=400, detail="Username is already taken.")
-    
     doc = { "userId": user_id, "username": data.username, "email": None, "name": current_user.get("name") or f"{current_user.get('first_name', '')} {current_user.get('last_name', '')}".strip(), "headline": data.headline, "profilePictureUrl": current_user.get("picture", ""), "points": 100, "badges": ["The Trailblazer"], "primaryGoal": data.primaryGoal, "preferredLanguages": data.preferredLanguages, "createdAt": datetime.utcnow(), "learningProfile": {"stream": data.stream, "branch": data.branch, "domains": data.selectedDomains, "skillsToLearn": data.skillsToLearn}, "tutorProfile": {"isTutor": len(data.skillsToTeach) > 0, "teachableModules": []} }
     users_collection.insert_one(doc)
     return {"message": "Onboarding successful!"}

@@ -1,38 +1,80 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Dashboard - Learn N Teach</title>
-</head>
-<body>
-    <template>
-        <div class="container py-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 id="welcome-message" class="fw-light">Loading...</h1>
-                <div class="d-flex align-items-center">
-                    <span class="fw-bold me-2 text-muted">My Points:</span>
-                    <span id="user-points" class="badge bg-success fs-5">...</span>
-                </div>
-            </div>
+async function initializeDashboard(clerk) {
+    try {
+        const token = await clerk.session.getToken();
+        const response = await fetch('/api/dashboard', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!response.ok) throw new Error('Failed to fetch dashboard data.');
+        const data = await response.json();
+        renderDashboard(data, token);
+    } catch (error) {
+        document.getElementById('dashboard-content').innerHTML = `<div class="alert alert-danger">Could not load your dashboard. ${error.message}</div>`;
+    }
+}
 
-            <div id="dashboard-content">
-                <h2 class="h4 border-bottom pb-2 mb-4">My Learning Roadmaps</h2>
-                <div id="learning-tracks-container" class="row">
-                    <div class="text-center p-5"><div class="spinner-border text-primary" role="status"></div></div>
-                </div>
-            </div>
-        </div>
-    </template>
-    
-    <script src="/js/layout.js"></script>
-    <script src="/js/dashboard.js"></script>
-    
-    <script>
-        function onClerkReady() {
-             if (window.Clerk && window.Clerk.user) {
-                initializeDashboard(window.Clerk);
+function renderDashboard(data, token) {
+    document.getElementById('welcome-message').textContent = `Welcome, ${data.name}!`;
+    document.getElementById('user-points').textContent = data.points;
+    const tracksContainer = document.getElementById('learning-tracks-container');
+
+    if (data.learningTracks && data.learningTracks.length > 0) {
+        let tracksHtml = '';
+        data.learningTracks.forEach(track => {
+            tracksHtml += `
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">${track.skill}</h5>
+                            <p class="card-text text-muted flex-grow-1">${track.progress_summary}</p>
+                            ${ track.generated ? 
+                                `<a href="/roadmap.html?skill=${track.skill_slug}" class="btn btn-primary mt-auto">View Roadmap</a>` :
+                                `<button class="btn btn-outline-primary mt-auto generate-roadmap-btn" data-skill="${track.skill}">
+                                     <i class="bi bi-stars"></i> Generate AI Roadmap
+                                 </button>`
+                            }
+                        </div>
+                    </div>
+                </div>`;
+        });
+        tracksContainer.innerHTML = tracksHtml;
+    } else {
+        tracksContainer.innerHTML = `<div class="text-center p-4 border rounded bg-light"><p>You have no skills selected to learn.</p></div>`;
+    }
+    addGenerateButtonListeners(token);
+}
+
+function addGenerateButtonListeners(token) {
+    document.querySelectorAll('.generate-roadmap-btn').forEach(button => {
+        button.addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            const skill = btn.dataset.skill;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Queuing...`;
+
+            try {
+                const response = await fetch('/api/roadmaps', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ skill: skill })
+                });
+
+                if (!response.ok) { // Check for 4xx/5xx responses
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || "Server responded with an error.");
+                }
+
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-success');
+                btn.innerHTML = `Queued! Refreshing...`;
+                
+                setTimeout(() => window.location.reload(), 2000);
+            } catch (error) {
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-danger');
+                btn.innerHTML = `Error!`;
+                btn.disabled = false;
+                console.error("Failed to generate roadmap:", error);
             }
-        }
-    </script>
-</body>
-</html>
+        });
+    });
+}

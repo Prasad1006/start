@@ -12,6 +12,7 @@ db = None
 users_collection = None
 roadmaps_collection = None
 sessions_collection = None
+roadmap_requests_collection = None
 
 MONGO_URI = os.getenv("MONGODB_URI")
 
@@ -27,6 +28,7 @@ else:
         users_collection = db.users
         roadmaps_collection = db.roadmaps
         sessions_collection = db.sessions
+        roadmap_requests_collection = db.roadmap_requests
         print("✅ DB collections initialized.", file=sys.stderr)
 
     except ConnectionFailure as e:
