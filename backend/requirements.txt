@@ -5,5 +5,5 @@ python-dotenv
 pymongo
 requests
 google-generativeai
-dramatiq[redis, watch]
+httpx
 python-jose[cryptography]

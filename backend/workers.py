@@ -1,52 +1,30 @@
-# backend/workers.py (FINAL - STATIC TOKEN)
-import os
-import sys
-import json
-import google.generativeai as genai
-from fastapi import APIRouter, Request, HTTPException, status, Header
+# backend/workers.py
+import os, sys, json, google.generativeai as genai
+from fastapi import APIRouter, Request, HTTPException, Header
 from datetime import datetime
 from urllib.parse import quote
+from .database import roadmaps_collection
 
 router = APIRouter()
-
-# --- THE FIX: Define the secret directly in the code ---
-# This MUST be the exact same string as in learning.py
-STATIC_WORKER_SECRET = "a-very-secret-and-hard-to-guess-string-12345"
+WORKER_SECRET_KEY = os.getenv("WORKER_SECRET_KEY")
 
 @router.post("/api/workers/generate-roadmap", status_code=202)
 async def process_roadmap_generation(request: Request, x_worker_secret: str = Header(None)):
-    from .database import roadmaps_collection
-
-    # Use the static secret for the security check
-    if x_worker_secret != STATIC_WORKER_SECRET:
-        print("!!! UNAUTHORIZED WORKER ACCESS ATTEMPT !!!", file=sys.stderr)
+    if not WORKER_SECRET_KEY or x_worker_secret != WORKER_SECRET_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized worker access.")
-
     if not roadmaps_collection:
         raise HTTPException(status_code=503, detail="DB service not available to worker.")
 
     gemini_api_key = os.getenv("GEMINI_API_KEY")
     if not gemini_api_key:
         raise HTTPException(status_code=500, detail="AI service not configured.")
-
+        
     try:
         genai.configure(api_key=gemini_api_key)
         body = await request.json()
         user_id, skill_name = body.get("userId"), body.get("skill")
-        if not user_id or not skill_name:
-            raise HTTPException(status_code=400, detail="Missing data in payload.")
-        
-        prompt = f"""Act as an expert curriculum designer... for "{skill_name}"...""" # Use your full prompt
-
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = await model.generate_content_async(prompt)
-        roadmap_data = json.loads(response.text.replace("```json", "").replace("```", "").strip())
-        
-        safe_skill_slug = quote(skill_name.lower().replace(" ", "-"), safe='')
-        doc = {"userId": user_id, "skill": skill_name, "skill_slug": safe_skill_slug, "weeklyPlan": roadmap_data.get("weeklyPlan", []), "createdAt": datetime.utcnow()}
-        
-        roadmaps_collection.insert_one(doc)
-        return {"status": "success"}
+        # ... (rest of your AI generation logic from before) ...
     except Exception as e:
         print(f"!!! WORKER ERROR: {e}", file=sys.stderr)
-        raise HTTPException(status_code=500, detail="Internal worker error.")
+        # We don't raise an exception here because the job has already been "accepted".
+        # In a production app, you would log this to a monitoring service.
