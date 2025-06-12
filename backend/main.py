@@ -1,4 +1,4 @@
-# backend/main.py (FINAL RESTORED VERSION)
+# backend/main.py (FINAL AND COMPLETE VERSION FOR PHASE 1)
 import os
 import sys
 from fastapi import FastAPI, Depends, HTTPException, status, Request
@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from typing import List
 from datetime import datetime
 from dotenv import load_dotenv
+from urllib.parse import quote
 
 # --- Our module imports ---
 from . import workers
@@ -78,9 +79,25 @@ async def onboard_user(data: OnboardingData, current_user: dict = Depends(get_cu
 
 @app.get("/api/users/onboarding-status")
 async def get_onboarding_status(current_user: dict = Depends(get_current_user)):
-    if users_collection and users_collection.find_one({"userId": current_user.get("sub")}, {"_id": 1}):
+    """
+    Checks if a user has completed the onboarding flow by looking for their
+    profile document in the database.
+    """
+    # More robust check to prevent errors on cold starts or if the DB connection fails.
+    if users_collection is None:
+        # If the database isn't available, we can't confirm their status, so we must raise an error.
+        raise HTTPException(
+            status_code=503, # Service Unavailable
+            detail="Database service is temporarily unavailable. Could not check onboarding status."
+        )
+
+    # Now that we know users_collection is not None, this query is safe.
+    if users_collection.find_one({"userId": current_user.get("sub")}, {"_id": 1}):
         return {"status": "completed"}
+    
+    # If no document is found, their onboarding is pending.
     return {"status": "pending"}
+
 
 @app.get("/api/dashboard", response_model=DashboardData)
 async def get_dashboard_data(current_user: dict = Depends(get_current_user)):
@@ -100,11 +117,13 @@ async def get_dashboard_data(current_user: dict = Depends(get_current_user)):
     learning_tracks = []
     for skill in skills_to_learn:
         is_generated = skill in generated_skills
-        slug = generated_skills.get(skill, "") if is_generated else skill.lower().replace(" ", "-").replace("/", "-").replace(".", "")
         
+        # Use URL encoding to create a safe slug for use in URLs.
+        safe_slug = generated_skills.get(skill) if is_generated else quote(skill.lower().replace(" ", "-"), safe='')
+
         learning_tracks.append({
             "skill": skill,
-            "skill_slug": slug,
+            "skill_slug": safe_slug,
             "progress_summary": "Ready to Start" if is_generated else "AI Roadmap Not Generated",
             "progress_percent": 0,
             "generated": is_generated
