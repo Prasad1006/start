@@ -3,7 +3,13 @@
   "builds": [
     {
       "src": "backend/main.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": { "maxLambdaSize": "45mb" }
+    },
+    {
+      "src": "vercel-dramatiq.py",
+      "use": "@vercel/python",
+      "config": { "maxLambdaSize": "45mb" }
     },
     {
       "src": "frontend/**",
@@ -12,7 +18,15 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
+      "src": "/api/roadmaps",
+      "dest": "backend/main.py"
+    },
+    {
+      "src": "/api/users/onboarding-status",
+      "dest": "backend/main.py"
+    },
+    {
+      "src": "/api/dashboard",
       "dest": "backend/main.py"
     },
     {
