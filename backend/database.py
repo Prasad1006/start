@@ -1,4 +1,4 @@
-# backend/database.py (REVERTED TO STABLE VERSION)
+# backend/database.py (FINAL STABLE VERSION)
 import os
 import sys
 from pymongo import MongoClient
@@ -33,7 +33,7 @@ else:
         users_collection = db.users
         roadmaps_collection = db.roadmaps
         sessions_collection = db.sessions
-        roadmap_requests_collection = db.roadmap_requests # For the cron/polling architecture
+        roadmap_requests_collection = db.roadmap_requests
         print("✅ [DB] Database collections initialized.", file=sys.stderr)
 
     except ConnectionFailure as e:

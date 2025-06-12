@@ -1,4 +1,4 @@
-# backend/main.py (REVERTED TO STABLE VERSION)
+# backend/main.py (FINAL STABLE VERSION)
 import os
 from fastapi import FastAPI, Depends, HTTPException, status
 from typing import List
@@ -32,7 +32,7 @@ class DashboardData(BaseModel):
 
 # --- API Endpoints ---
 @app.post("/api/users/onboard", status_code=status.HTTP_201_CREATED)
-async def onboard_user(data: OnboardingData, current_user: dict = Depends(auth.get_current_user)):
+async def onboard__user(data: OnboardingData, current_user: dict = Depends(auth.get_current_user)):
     if users_collection is None: raise HTTPException(status_code=503, detail="Database service unavailable.")
     user_id = current_user.get("sub")
     if users_collection.find_one({"userId": user_id}): return {"message": "User already has a profile."}
