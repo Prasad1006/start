@@ -1,8 +1,12 @@
 # backend/main.py
+
 from fastapi import FastAPI
-from users import router as users_router
-from learning import router as learning_router
-# from sessions import router as sessions_router # Will be added in a future phase
+# ** THIS IS THE FIX **
+# We use 'src.users' to tell Python to look inside the 'src' folder
+# for the 'users' module.
+from src.users import router as users_router
+from src.learning import router as learning_router
+# from src.sessions import router as sessions_router # Will be added in a future phase
 
 app = FastAPI(
     title="Learn N Teach API",
@@ -11,9 +15,9 @@ app = FastAPI(
 )
 
 # Include the routers from each module
-app.include_router(users_router.router)
-app.include_router(learning_router.router)
-# app.include_router(sessions_router.router)
+app.include_router(users_router)
+app.include_router(learning_router)
+# app.include_router(sessions_router)
 
 @app.get("/api")
 def read_root():
