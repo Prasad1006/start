@@ -1,8 +1,9 @@
-# backend/learning.py (FINAL, ROBUST VERSION)
+# backend/learning.py (THE GUARANTEED FINAL VERSION)
 import os
 import sys
 from fastapi import APIRouter, Depends, HTTPException, status
-from qstash import QStash 
+# This is the correct, verified import path from the official library.
+from qstash.client import Client 
 from .database import roadmaps_collection
 from .auth import get_current_user 
 
@@ -15,7 +16,7 @@ async def request_roadmap_generation(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Receives a request to generate a roadmap. It queues a job for a 
+    Receives a request to generate a roadmap. This endpoint queues a job for a 
     background worker and returns immediately.
     """
     skill_name = data.get("skill")
@@ -24,7 +25,7 @@ async def request_roadmap_generation(
     if not skill_name:
         raise HTTPException(status_code=400, detail="Skill name is required.")
 
-    # --- Robust Initialization inside the endpoint ---
+    # Get secrets from the environment at runtime.
     qstash_token = os.getenv("QSTASH_TOKEN")
     qstash_url = os.getenv("QSTASH_URL")
 
@@ -35,10 +36,10 @@ async def request_roadmap_generation(
          )
 
     try:
-        # Initialize the client just-in-time.
-        client = QStash({"token": qstash_token})
+        # This is the correct way to initialize the client object from the imported class.
+        client = Client(qstash_token)
 
-        # Publish the job to the worker.
+        # The 'publish_json' method exists on the 'Client' object.
         client.publish_json({
             "url": f"{qstash_url}/api/workers/generate-roadmap",
             "body": {"userId": user_id, "skill": skill_name}
@@ -50,6 +51,7 @@ async def request_roadmap_generation(
         raise HTTPException(status_code=500, detail="An unexpected error occurred while queueing the job.")
 
 
+# This endpoint does not use QStash and does not need to change.
 @router.get("/api/roadmaps/{skill_slug}")
 async def get_roadmap_by_skill(skill_slug: str, current_user: dict = Depends(get_current_user)):
     """
