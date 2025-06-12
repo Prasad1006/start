@@ -1,4 +1,4 @@
-# backend/main.py (fully updated version)
+# backend/main.py (FINAL RESTORED VERSION)
 import os
 import sys
 from fastapi import FastAPI, Depends, HTTPException, status, Request
@@ -11,11 +11,10 @@ from dotenv import load_dotenv
 # --- Our module imports ---
 from . import workers
 from . import learning
-from .auth import get_current_user # <<< THIS IS THE FIX. Import from auth.py
+from .auth import get_current_user
 
 # --- Startup & Database Initialization ---
 load_dotenv()
-CLERK_JWT_ISSUER = os.getenv("CLERK_JWT_ISSUER")
 
 try:
     from .database import users_collection, roadmaps_collection
@@ -28,11 +27,11 @@ except ImportError as e:
 
 app = FastAPI()
 
-# --- Include the new routers ---
+# --- Include the routers from other modules ---
 app.include_router(workers.router)
 app.include_router(learning.router)
 
-# --- Pydantic Models (Unchanged) ---
+# --- Pydantic Models ---
 class OnboardingData(BaseModel):
     username: str = Field(..., min_length=3, max_length=20, pattern="^[a-zA-Z0-9_]+$")
     headline: str; primaryGoal: str; preferredLanguages: List[str]; stream: str; branch: str
@@ -51,13 +50,9 @@ class DashboardData(BaseModel):
     isTutor: bool
     learningTracks: List[LearningTrack]
 
-# --- Auth Dependency is now REMOVED from this file ---
-# It has been moved to backend/auth.py
-
-# --- API Endpoints ---
+# --- API Endpoints defined in this file ---
 @app.post("/api/users/onboard", status_code=status.HTTP_201_CREATED)
 async def onboard_user(data: OnboardingData, current_user: dict = Depends(get_current_user)):
-    # ... (This logic is correct and remains unchanged) ...
     if users_collection is None:
         return JSONResponse(status_code=503, content={"error": "Database service is not available."})
     try:
@@ -83,21 +78,23 @@ async def onboard_user(data: OnboardingData, current_user: dict = Depends(get_cu
 
 @app.get("/api/users/onboarding-status")
 async def get_onboarding_status(current_user: dict = Depends(get_current_user)):
-    # ... (Unchanged) ...
     if users_collection and users_collection.find_one({"userId": current_user.get("sub")}, {"_id": 1}):
         return {"status": "completed"}
     return {"status": "pending"}
 
 @app.get("/api/dashboard", response_model=DashboardData)
 async def get_dashboard_data(current_user: dict = Depends(get_current_user)):
-    # ... (This logic is correct and remains unchanged) ...
     user_id = current_user.get("sub")
     user_profile = users_collection.find_one({"userId": user_id})
     if not user_profile:
         raise HTTPException(status_code=404, detail="User profile not found. Please complete onboarding.")
 
     skills_to_learn = user_profile.get("learningProfile", {}).get("skillsToLearn", [])
-    generated_roadmaps = list(roadmaps_collection.find({"userId": user_id}, {"skill": 1, "skill_slug": 1}))
+    
+    generated_roadmaps = []
+    if roadmaps_collection is not None:
+        generated_roadmaps = list(roadmaps_collection.find({"userId": user_id}, {"skill": 1, "skill_slug": 1}))
+
     generated_skills = {r["skill"]: r["skill_slug"] for r in generated_roadmaps}
 
     learning_tracks = []
@@ -122,7 +119,6 @@ async def get_dashboard_data(current_user: dict = Depends(get_current_user)):
 
 @app.get("/api/profile")
 async def get_my_profile(current_user: dict = Depends(get_current_user)):
-    # ... (Unchanged) ...
     if users_collection is None: raise HTTPException(status_code=503, detail="Database service unavailable.")
     user_id = current_user.get("sub")
     user_profile = users_collection.find_one({"userId": user_id})
