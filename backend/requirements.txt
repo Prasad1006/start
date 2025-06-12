@@ -1,4 +1,4 @@
-# backend/requirements.txt (fully updated version)
+# backend/requirements.txt (FIXED VERSION)
 fastapi
 uvicorn
 python-dotenv
@@ -7,4 +7,4 @@ requests
 python-jose[cryptography]
 passlib[bcrypt]
 google-generativeai
-upstash-qstash
+qstash
